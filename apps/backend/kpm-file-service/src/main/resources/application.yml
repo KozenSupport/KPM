@@ -1,0 +1,49 @@
+server:
+  port: 8107
+
+spring:
+  application:
+    name: kpm-file-service
+  config:
+    import: optional:nacos:${spring.application.name}.${spring.cloud.nacos.config.file-extension:yaml}
+  datasource:
+    url: jdbc:postgresql://${KPM_DB_HOST:127.0.0.1}:${KPM_DB_PORT:5432}/${KPM_DB_NAME:kpm}
+    username: ${KPM_DB_USER:kpm}
+    password: ${KPM_DB_PASSWORD:kpm_dev_password}
+  servlet:
+    multipart:
+      max-file-size: ${KPM_UPLOAD_MAX_FILE_SIZE:200MB}
+      max-request-size: ${KPM_UPLOAD_MAX_REQUEST_SIZE:500MB}
+  cloud:
+    nacos:
+      server-addr: ${KPM_NACOS_ADDR:127.0.0.1:8848}
+      config:
+        enabled: ${KPM_NACOS_CONFIG_ENABLED:${KPM_NACOS_ENABLED:false}}
+        namespace: ${KPM_NACOS_NAMESPACE:public}
+        group: ${KPM_NACOS_CONFIG_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+      discovery:
+        enabled: ${KPM_NACOS_ENABLED:false}
+        namespace: ${KPM_NACOS_NAMESPACE:public}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+kpm:
+  service:
+    code: file
+  oss:
+    enabled: ${KPM_OSS_ENABLED:false}
+    endpoint: ${KPM_OSS_ENDPOINT:https://oss-cn-shanghai.aliyuncs.com}
+    bucket: ${KPM_OSS_BUCKET:xc-kozen-sh-fw}
+    root-prefix: ${KPM_OSS_ROOT_PREFIX:KPM/}
+    access-key-id: ${KPM_OSS_ACCESS_KEY_ID:}
+    access-key-secret: ${KPM_OSS_ACCESS_KEY_SECRET:}
+    download-url-expiration-seconds: ${KPM_OSS_DOWNLOAD_URL_EXPIRE_SECONDS:900}

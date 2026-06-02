@@ -7,14 +7,15 @@ If you are continuing KPM in a new conversation, read these files in order befor
 3. `docs/00-governance/session-handoff.md`
 4. `docs/00-governance/decision-log.md`
 5. `docs/01-requirements/prd.md`
-6. `docs/02-prototype/full-prototype-backlog.md`
+6. `docs/03-architecture/technical-solution.md`
+7. `docs/02-prototype/full-prototype-backlog.md`
 
 ## Project identity
 
 - **Project:** KPM — Kozen Project Management
 - **Organization:** Kozen
 - **Workspace root:** `/Users/henry/Documents/KPM`
-- **Current phase:** Phase 1 — Requirement preparation / full prototype confirmation
+- **Current phase:** Phase 2 — Technical solution
 
 ## How to continue
 
@@ -27,11 +28,8 @@ Before doing new work:
 
 ## Current continuation point
 
-The project is currently expanding the full prototype before entering Phase 2. The latest completed area is:
+The project has entered Phase 2. The current continuation point is the revised distributed Java microservice technical proposal in:
 
-- Stage-detail permission model
-- Stage material publishing / project materials area
+- `docs/03-architecture/technical-solution.md`
 
-The next likely product area is documented in:
-
-- `docs/02-prototype/full-prototype-backlog.md`
+The latest architecture direction is: controlled microservices, 1000 concurrent users, Nacos-based service/config governance, free/open-source components by default, Eclipse Temurin OpenJDK 21 rather than Oracle JDK 8, PostgreSQL, Valkey-compatible cache, built-in IAM login, Alibaba Cloud OSS file storage, and Kubernetes-ready deployment.

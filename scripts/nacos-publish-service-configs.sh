@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NACOS_ADDR="${KPM_NACOS_ADDR:-127.0.0.1:8848}"
+NAMESPACE="${KPM_NACOS_NAMESPACE:-public}"
+GROUP="${KPM_NACOS_CONFIG_GROUP:-DEFAULT_GROUP}"
+DB_HOST="${KPM_DB_HOST:-host.docker.internal}"
+DB_PORT="${KPM_DB_PORT:-5432}"
+DB_NAME="${KPM_DB_NAME:-kpm}"
+DB_USER="${KPM_DB_USER:-kpm}"
+DB_PASSWORD="${KPM_DB_PASSWORD:-kpm_dev_password}"
+AUTH_SECRET="${KPM_AUTH_TOKEN_SECRET:-kpm-local-dev-secret-change-me}"
+
+publish() {
+  local data_id="$1"
+  local content="$2"
+  curl -fsS -X POST "http://${NACOS_ADDR}/nacos/v1/cs/configs" \
+    --data-urlencode "tenant=${NAMESPACE}" \
+    --data-urlencode "group=${GROUP}" \
+    --data-urlencode "dataId=${data_id}" \
+    --data-urlencode "content=${content}" >/dev/null
+  echo "Published ${data_id} to namespace=${NAMESPACE}, group=${GROUP}"
+}
+
+base_config() {
+  local port="$1"
+  local code="$2"
+  cat <<YAML
+server:
+  port: ${port}
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+kpm:
+  service:
+    code: ${code}
+  auth:
+    token-secret: ${AUTH_SECRET}
+YAML
+}
+
+publish kpm-iam-service.yaml "$(base_config 8101 iam)"
+publish kpm-resource-service.yaml "$(base_config 8102 resource)"
+publish kpm-project-service.yaml "$(base_config 8103 project)"
+publish kpm-customer-service.yaml "$(base_config 8104 customer)"
+publish kpm-task-service.yaml "$(base_config 8105 task)"
+publish kpm-order-service.yaml "$(base_config 8106 order)"
+publish kpm-integration-service.yaml "$(base_config 8109 integration)"
+
+publish kpm-file-service.yaml "$(cat <<YAML
+server:
+  port: 8107
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  servlet:
+    multipart:
+      max-file-size: ${KPM_UPLOAD_MAX_FILE_SIZE:-200MB}
+      max-request-size: ${KPM_UPLOAD_MAX_REQUEST_SIZE:-500MB}
+kpm:
+  service:
+    code: file
+  auth:
+    token-secret: ${AUTH_SECRET}
+  oss:
+    enabled: ${KPM_OSS_ENABLED:-false}
+    endpoint: ${KPM_OSS_ENDPOINT:-https://oss-cn-shanghai.aliyuncs.com}
+    bucket: ${KPM_OSS_BUCKET:-xc-kozen-sh-fw}
+    root-prefix: ${KPM_OSS_ROOT_PREFIX:-KPM/}
+    access-key-id: ${KPM_OSS_ACCESS_KEY_ID:-}
+    access-key-secret: ${KPM_OSS_ACCESS_KEY_SECRET:-}
+    download-url-expiration-seconds: ${KPM_OSS_DOWNLOAD_URL_EXPIRE_SECONDS:-900}
+YAML
+)"
+
+publish kpm-analytics-service.yaml "$(cat <<YAML
+server:
+  port: 8108
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+kpm:
+  service:
+    code: analytics
+  auth:
+    token-secret: ${AUTH_SECRET}
+  geocoding:
+    external-enabled: ${KPM_GEOCODING_EXTERNAL_ENABLED:-false}
+    provider: ${KPM_GEOCODING_PROVIDER:-nominatim}
+    nominatim-url: ${KPM_GEOCODING_NOMINATIM_URL:-https://nominatim.openstreetmap.org/search}
+    user-agent: ${KPM_GEOCODING_USER_AGENT:-Kozen-KPM/0.1}
+    minimum-request-interval-millis: ${KPM_GEOCODING_MIN_INTERVAL_MS:-1100}
+    request-timeout-seconds: ${KPM_GEOCODING_TIMEOUT_SECONDS:-3}
+YAML
+)"
+
+publish kpm-gateway.yaml "$(cat <<YAML
+server:
+  port: 8080
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOriginPatterns:
+                  - "*"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders:
+                  - "*"
+                exposedHeaders:
+                  - Authorization
+                allowCredentials: false
+kpm:
+  iam:
+    uri: ${KPM_IAM_URI:-http://host.docker.internal:8101}
+  auth:
+    enabled: ${KPM_AUTH_ENABLED:-true}
+    rbac-enabled: ${KPM_RBAC_ENABLED:-true}
+    token-secret: ${AUTH_SECRET}
+YAML
+)"
+
+publish kpm-notification-service.yaml "$(cat <<YAML
+server:
+  port: 8110
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  mail:
+    host: ${KPM_MAIL_HOST:-}
+    port: ${KPM_MAIL_PORT:-587}
+    username: ${KPM_MAIL_USERNAME:-}
+    password: ${KPM_MAIL_PASSWORD:-}
+    properties:
+      mail:
+        smtp:
+          auth: ${KPM_MAIL_SMTP_AUTH:-true}
+          starttls:
+            enable: ${KPM_MAIL_STARTTLS_ENABLE:-true}
+kpm:
+  service:
+    code: notification
+  auth:
+    token-secret: ${AUTH_SECRET}
+  notification:
+    refresh-interval-seconds: ${KPM_NOTIFICATION_REFRESH_INTERVAL_SECONDS:-120}
+    processor-interval-ms: ${KPM_NOTIFICATION_PROCESSOR_INTERVAL_MS:-15000}
+    mail-enabled: ${KPM_NOTIFICATION_MAIL_ENABLED:-false}
+    mail-from: ${KPM_NOTIFICATION_MAIL_FROM:-noreply@kozen.example}
+YAML
+)"

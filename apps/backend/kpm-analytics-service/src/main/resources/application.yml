@@ -1,0 +1,44 @@
+server:
+  port: 8108
+
+spring:
+  application:
+    name: kpm-analytics-service
+  config:
+    import: optional:nacos:${spring.application.name}.${spring.cloud.nacos.config.file-extension:yaml}
+  datasource:
+    url: jdbc:postgresql://${KPM_DB_HOST:127.0.0.1}:${KPM_DB_PORT:5432}/${KPM_DB_NAME:kpm}
+    username: ${KPM_DB_USER:kpm}
+    password: ${KPM_DB_PASSWORD:kpm_dev_password}
+  cloud:
+    nacos:
+      server-addr: ${KPM_NACOS_ADDR:127.0.0.1:8848}
+      config:
+        enabled: ${KPM_NACOS_CONFIG_ENABLED:${KPM_NACOS_ENABLED:false}}
+        namespace: ${KPM_NACOS_NAMESPACE:public}
+        group: ${KPM_NACOS_CONFIG_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+      discovery:
+        enabled: ${KPM_NACOS_ENABLED:false}
+        namespace: ${KPM_NACOS_NAMESPACE:public}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+kpm:
+  service:
+    code: analytics
+  geocoding:
+    external-enabled: ${KPM_GEOCODING_EXTERNAL_ENABLED:false}
+    provider: ${KPM_GEOCODING_PROVIDER:nominatim}
+    nominatim-url: ${KPM_GEOCODING_NOMINATIM_URL:https://nominatim.openstreetmap.org/search}
+    user-agent: ${KPM_GEOCODING_USER_AGENT:Kozen-KPM/0.1}
+    minimum-request-interval-millis: ${KPM_GEOCODING_MIN_INTERVAL_MS:1100}
+    request-timeout-seconds: ${KPM_GEOCODING_TIMEOUT_SECONDS:3}

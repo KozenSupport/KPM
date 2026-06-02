@@ -1,0 +1,26 @@
+ALTER TABLE kpm_stage_materials
+  ADD COLUMN IF NOT EXISTS bucket TEXT,
+  ADD COLUMN IF NOT EXISTS object_key TEXT,
+  ADD COLUMN IF NOT EXISTS storage_url TEXT,
+  ADD COLUMN IF NOT EXISTS storage_category TEXT;
+
+ALTER TABLE kpm_project_materials
+  ADD COLUMN IF NOT EXISTS file_type TEXT,
+  ADD COLUMN IF NOT EXISTS file_size TEXT,
+  ADD COLUMN IF NOT EXISTS uploader TEXT,
+  ADD COLUMN IF NOT EXISTS bucket TEXT,
+  ADD COLUMN IF NOT EXISTS object_key TEXT,
+  ADD COLUMN IF NOT EXISTS storage_url TEXT,
+  ADD COLUMN IF NOT EXISTS storage_category TEXT;
+
+ALTER TABLE kpm_customer_materials
+  ADD COLUMN IF NOT EXISTS bucket TEXT,
+  ADD COLUMN IF NOT EXISTS object_key TEXT,
+  ADD COLUMN IF NOT EXISTS storage_url TEXT,
+  ADD COLUMN IF NOT EXISTS storage_category TEXT;
+
+ALTER TABLE kpm_task_attachments
+  ADD COLUMN IF NOT EXISTS bucket TEXT,
+  ADD COLUMN IF NOT EXISTS object_key TEXT,
+  ADD COLUMN IF NOT EXISTS storage_url TEXT,
+  ADD COLUMN IF NOT EXISTS storage_category TEXT;

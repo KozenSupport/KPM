@@ -4,3 +4,12 @@ node_modules/
 dist/
 .env
 .env.*
+!.env.example
+!*.env.example
+
+.m2/
+target/
+**/target/
+*.tsbuildinfo
+apps/frontend/kpm-web/vite.config.js
+apps/frontend/kpm-web/vite.config.d.ts

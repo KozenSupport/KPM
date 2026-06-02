@@ -4,7 +4,7 @@
 
 - **Name:** KPM — Kozen Project Management
 - **Organization:** Kozen
-- **Current phase:** Phase 1 — Requirement preparation
+- **Current phase:** Phase 2 — Technical solution
 
 ## Goal
 

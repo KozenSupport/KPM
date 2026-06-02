@@ -12,7 +12,7 @@ KPM is the product workspace for planning, designing, building, and launching Ko
    - Prefer a Java-first stack unless product constraints suggest otherwise
 3. **Development**
    - Implement the approved solution
-   - Design for 100 concurrent users, high availability, and high concurrency
+   - Design for at least 1000 concurrent users, high availability, and high concurrency
 4. **Acceptance and launch**
    - Prepare deployment steps and one-command deployment where practical
    - Test, fix, and iterate until the release is acceptable
@@ -35,8 +35,8 @@ KPM is the product workspace for planning, designing, building, and launching Ko
 
 ## Current status
 
-- **Current phase:** Phase 1 — Requirement preparation
-- **Next milestone:** Complete requirement intake, then draft the first PRD
+- **Current phase:** Phase 2 — Technical solution
+- **Next milestone:** Confirm the revised Java microservice architecture, with free/open-source components as the default, then produce service/API/database/deployment designs
 
 
 

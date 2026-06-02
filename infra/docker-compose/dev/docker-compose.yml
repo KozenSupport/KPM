@@ -1,0 +1,82 @@
+name: kpm-dev
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: kpm-postgres
+    environment:
+      POSTGRES_DB: kpm
+      POSTGRES_USER: kpm
+      POSTGRES_PASSWORD: kpm_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - kpm-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kpm -d kpm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: kpm-valkey
+    ports:
+      - "6379:6379"
+    volumes:
+      - kpm-valkey-data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nacos:
+    image: nacos/nacos-server:v3.1.1
+    container_name: kpm-nacos
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "false"
+      NACOS_AUTH_TOKEN: "S1BNLURldi1Mb2NhbC1OYWNvcy1BdXRoLVRva2VuLTEyMzQ1Njc4OTA="
+      NACOS_AUTH_IDENTITY_KEY: "kpm-dev"
+      NACOS_AUTH_IDENTITY_VALUE: "kpm-dev-local"
+      JVM_XMS: 64m
+      JVM_XMX: 128m
+      JVM_XMN: 32m
+    ports:
+      - "8848:8848"
+      - "8849:8080"
+      - "9848:9848"
+    volumes:
+      - kpm-nacos-data:/home/nacos/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8848/nacos/v3/admin/core/state || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.3.1
+    container_name: kpm-rocketmq-namesrv
+    profiles: ["mq"]
+    command: sh mqnamesrv
+    ports:
+      - "9876:9876"
+
+  rocketmq-broker:
+    image: apache/rocketmq:5.3.1
+    container_name: kpm-rocketmq-broker
+    profiles: ["mq"]
+    depends_on:
+      - rocketmq-namesrv
+    environment:
+      NAMESRV_ADDR: rocketmq-namesrv:9876
+    command: sh mqbroker -n rocketmq-namesrv:9876
+    ports:
+      - "10911:10911"
+      - "10909:10909"
+
+volumes:
+  kpm-postgres-data:
+  kpm-valkey-data:
+  kpm-nacos-data:

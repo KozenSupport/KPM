@@ -1,0 +1,93 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: kpm-gateway
+  config:
+    import: optional:nacos:${spring.application.name}.${spring.cloud.nacos.config.file-extension:yaml}
+  cloud:
+    nacos:
+      server-addr: ${KPM_NACOS_ADDR:127.0.0.1:8848}
+      config:
+        enabled: ${KPM_NACOS_CONFIG_ENABLED:${KPM_NACOS_ENABLED:false}}
+        namespace: ${KPM_NACOS_NAMESPACE:public}
+        group: ${KPM_NACOS_CONFIG_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+      discovery:
+        enabled: ${KPM_NACOS_ENABLED:false}
+        namespace: ${KPM_NACOS_NAMESPACE:public}
+    gateway:
+      server:
+        webflux:
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOriginPatterns:
+                  - "*"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders:
+                  - "*"
+                exposedHeaders:
+                  - Authorization
+                allowCredentials: false
+          routes:
+            - id: iam
+              uri: lb://kpm-iam-service
+              predicates:
+                - Path=/api/iam/**
+            - id: resources
+              uri: lb://kpm-resource-service
+              predicates:
+                - Path=/api/resources/**
+            - id: projects
+              uri: lb://kpm-project-service
+              predicates:
+                - Path=/api/projects/**
+            - id: customers
+              uri: lb://kpm-customer-service
+              predicates:
+                - Path=/api/customers/**
+            - id: tasks
+              uri: lb://kpm-task-service
+              predicates:
+                - Path=/api/tasks/**
+            - id: orders
+              uri: lb://kpm-order-service
+              predicates:
+                - Path=/api/orders/**
+            - id: files
+              uri: lb://kpm-file-service
+              predicates:
+                - Path=/api/files/**
+            - id: analytics
+              uri: lb://kpm-analytics-service
+              predicates:
+                - Path=/api/analytics/**
+            - id: notifications
+              uri: lb://kpm-notification-service
+              predicates:
+                - Path=/api/notifications/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+kpm:
+  iam:
+    uri: ${KPM_IAM_URI:http://localhost:8101}
+  auth:
+    enabled: ${KPM_AUTH_ENABLED:true}
+    rbac-enabled: ${KPM_RBAC_ENABLED:true}
+    token-secret: ${KPM_AUTH_TOKEN_SECRET:kpm-local-dev-secret-change-me}
