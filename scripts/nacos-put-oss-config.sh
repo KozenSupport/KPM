@@ -49,7 +49,7 @@ server:
   port: 8107
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?stringtype=unspecified
     username: ${DB_USER}
     password: ${DB_PASSWORD}
   servlet:

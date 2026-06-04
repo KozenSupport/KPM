@@ -6,6 +6,7 @@ package com.kozen.kpm.task.dto;
  */
 public record TaskWriteCommand(
         String id,
+        String taskNo,
         String title,
         String description,
         String projectId,
@@ -23,6 +24,7 @@ public record TaskWriteCommand(
 ) {
     public static TaskWriteCommand from(
             String id,
+            String taskNo,
             TaskRequest request,
             String projectId,
             String stageId,
@@ -32,6 +34,7 @@ public record TaskWriteCommand(
     ) {
         return new TaskWriteCommand(
                 id,
+                taskNo,
                 request.title(),
                 request.description(),
                 projectId,

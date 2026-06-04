@@ -249,13 +249,4 @@ public interface ResourceMapper {
     @Update("update kpm_enum_items set del_flag=1, active=false, update_time=current_timestamp where id=#{id} and del_flag=0")
     void deleteEnum(@Param("id") String id);
 
-    @Select("select state::text from kpm_prototype_snapshots where id='default'")
-    List<String> prototypeSnapshots();
-
-    @Insert("""
-            insert into kpm_prototype_snapshots (id, state, updated_by, updated_at)
-            values ('default', cast(#{json} as jsonb), #{updatedBy}, current_timestamp)
-            on conflict (id) do update set state=excluded.state, updated_by=excluded.updated_by, updated_at=current_timestamp
-            """)
-    void upsertPrototypeSnapshot(@Param("json") String json, @Param("updatedBy") String updatedBy);
 }

@@ -5,8 +5,6 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @Schema(description = "客户联系人保存请求")
 public record CustomerContactRequest(
@@ -23,13 +21,4 @@ public record CustomerContactRequest(
         @Size(max = 500, message = "联系人备注不能超过500个字符")
         String remark
 ) {
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("name", name);
-        map.put("title", title);
-        map.put("phone", phone);
-        map.put("email", email);
-        map.put("remark", remark);
-        return map;
-    }
 }

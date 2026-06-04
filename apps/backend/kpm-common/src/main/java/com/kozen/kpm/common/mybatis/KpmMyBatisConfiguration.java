@@ -1,11 +1,13 @@
 package com.kozen.kpm.common.mybatis;
 
 import org.mybatis.spring.boot.autoconfigure.ConfigurationCustomizer;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /** Shared MyBatis configuration for KPM microservices. */
 @Configuration
+@ConditionalOnClass(ConfigurationCustomizer.class)
 public class KpmMyBatisConfiguration {
     @Bean
     public ConfigurationCustomizer kpmMyBatisConfigurationCustomizer() {

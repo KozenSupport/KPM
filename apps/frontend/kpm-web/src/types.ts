@@ -1,1 +1,2 @@
-export type { AnyRecord, AppData, BootstrapData } from './types/index';
+export type { ApiResponse } from './types/api';
+export type * from './types/domain';

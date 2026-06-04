@@ -58,20 +58,23 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Transactional
     public TaskDto create(TaskRequest request) {
-        String id = request.id() == null || request.id().isBlank() ? nextTaskId() : request.id();
+        String id = request.id() == null || request.id().isBlank() ? IdUtil.nanoId("task") : request.id();
+        String customerId = SqlParamUtil.stringOrNull(request.customerId());
+        String taskNo = nextTaskNo(customerId);
         UserLookupEntity creator = requireUser(request.creator(), "任务创建者");
         TaskWriteCommand command = TaskWriteCommand.from(
                 id,
+                taskNo,
                 request,
                 SqlParamUtil.stringOrNull(request.projectId()),
                 SqlParamUtil.stringOrNull(request.stageId()),
-                SqlParamUtil.stringOrNull(request.customerId()),
+                customerId,
                 creator.getId(),
                 creator.getName()
         );
         taskMapper.insert(command);
         replacePeople(id, request);
-        publishTaskCreatedEvent(id, request);
+        publishTaskCreatedEvent(id, taskNo, request);
         return detail(id);
     }
 
@@ -81,6 +84,7 @@ public class TaskServiceImpl implements TaskService {
         UserLookupEntity creator = requireUser(request.creator(), "任务创建者");
         TaskWriteCommand command = TaskWriteCommand.from(
                 id,
+                null,
                 request,
                 SqlParamUtil.stringOrNull(request.projectId()),
                 SqlParamUtil.stringOrNull(request.stageId()),
@@ -142,7 +146,7 @@ public class TaskServiceImpl implements TaskService {
         }
     }
 
-    private void publishTaskCreatedEvent(String taskId, TaskRequest request) {
+    private void publishTaskCreatedEvent(String taskId, String taskNo, TaskRequest request) {
         List<String> recipients = request.safeAssignees().stream()
                 .map(person -> requireUser(person, "通知接收人"))
                 .map(UserLookupEntity::getId)
@@ -156,7 +160,7 @@ public class TaskServiceImpl implements TaskService {
                 "TASK_CREATED",
                 taskId,
                 "新任务已分配",
-                "任务 " + taskId + "：" + request.title() + " 已创建并分配给你。",
+                "任务 " + taskNo + "：" + request.title() + " 已创建并分配给你。",
                 JsonUtil.toJson(recipients)
         );
     }
@@ -183,8 +187,15 @@ public class TaskServiceImpl implements TaskService {
         }
     }
 
-    private String nextTaskId() {
-        Integer max = taskMapper.maxTaskNumber();
-        return "KPM-" + ((max == null ? 100 : max) + 1);
+    private String nextTaskNo(String customerId) {
+        String prefix = "N";
+        if (customerId != null) {
+            String shortName = taskMapper.customerShortName(customerId);
+            if (shortName != null && !shortName.isBlank()) {
+                prefix = shortName.trim().toUpperCase();
+            }
+        }
+        Long next = taskMapper.nextTaskNumber();
+        return prefix + (next == null ? 1 : next);
     }
 }

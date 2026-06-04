@@ -5,7 +5,6 @@ import com.kozen.kpm.resource.dto.DepartmentDto;
 import com.kozen.kpm.resource.dto.DepartmentRequest;
 import com.kozen.kpm.resource.dto.EnumItemDto;
 import com.kozen.kpm.resource.dto.EnumItemRequest;
-import com.kozen.kpm.resource.dto.PrototypeStateRequest;
 import com.kozen.kpm.resource.dto.ResourceBootstrapDto;
 import com.kozen.kpm.resource.dto.RoleDto;
 import com.kozen.kpm.resource.dto.RoleRequest;
@@ -24,7 +23,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/resources")
 @CrossOrigin(originPatterns = "*")
-@Tag(name = "资源管理", description = "用户、部门、角色、权限、系统枚举与原型试用状态")
+@Tag(name = "资源管理", description = "用户、部门、角色、权限、系统枚举与任务状态流转")
 public class ResourceApiController {
     private final ResourceService resourceService;
 
@@ -36,18 +35,6 @@ public class ResourceApiController {
     @Operation(summary = "获取资源启动数据", description = "返回用户、部门、角色、权限、枚举和任务状态流转。")
     public ApiResponse<ResourceBootstrapDto> bootstrap() {
         return ApiResponse.ok(resourceService.bootstrap());
-    }
-
-    @GetMapping("/prototype-state")
-    @Operation(summary = "获取原型试用状态", description = "用于试点阶段保存与恢复原型 UI 状态。正式接口联调完成后会逐步下线。")
-    public ApiResponse<Object> prototypeState() {
-        return ApiResponse.ok(resourceService.prototypeState());
-    }
-
-    @PostMapping("/prototype-state")
-    @Operation(summary = "保存原型试用状态", description = "将当前原型 UI 状态持久化到 PostgreSQL。")
-    public ApiResponse<Boolean> savePrototypeState(@RequestBody PrototypeStateRequest request) {
-        return ApiResponse.ok(resourceService.savePrototypeState(request));
     }
 
     @GetMapping("/users")

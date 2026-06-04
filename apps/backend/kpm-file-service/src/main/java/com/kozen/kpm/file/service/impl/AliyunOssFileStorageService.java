@@ -10,6 +10,7 @@ import com.kozen.kpm.common.util.ValidationUtil;
 import com.kozen.kpm.file.config.OssProperties;
 import com.kozen.kpm.file.model.DownloadUrlResult;
 import com.kozen.kpm.file.model.FileUploadResult;
+import com.kozen.kpm.file.model.OssStatusResult;
 import com.kozen.kpm.file.service.FileStorageService;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -108,18 +109,18 @@ public class AliyunOssFileStorageService implements FileStorageService {
     }
 
     @Override
-    public Map<String, Object> status() {
+    public OssStatusResult status() {
         OssProperties oss = currentOssProperties();
-        Map<String, Object> status = new LinkedHashMap<>();
-        status.put("enabled", oss.isEnabled());
-        status.put("ready", oss.ready());
-        status.put("endpoint", oss.getEndpoint());
-        status.put("bucket", oss.getBucket());
-        status.put("rootPrefix", oss.normalizedRootPrefix());
-        status.put("accessKeyConfigured", hasText(oss.getAccessKeyId()) && hasText(oss.getAccessKeySecret()));
-        status.put("downloadUrlExpirationSeconds", oss.getDownloadUrlExpirationSeconds());
-        status.put("categories", categoryPaths());
-        return status;
+        return new OssStatusResult(
+                oss.isEnabled(),
+                oss.ready(),
+                oss.getEndpoint(),
+                oss.getBucket(),
+                oss.normalizedRootPrefix(),
+                hasText(oss.getAccessKeyId()) && hasText(oss.getAccessKeySecret()),
+                oss.getDownloadUrlExpirationSeconds(),
+                categoryPaths()
+        );
     }
 
     private OssProperties currentOssProperties() {

@@ -3,8 +3,6 @@ package com.kozen.kpm.project.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 public record RequirementRequest(
         @NotBlank(message = "需求标题不能为空") @Size(max = 120, message = "需求标题不能超过120个字符") String title,
@@ -17,17 +15,4 @@ public record RequirementRequest(
         @NotBlank(message = "创建人不能为空") @Size(max = 60, message = "创建人不能超过60个字符") String creator,
         Boolean createTask
 ) {
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("title", title);
-        map.put("userStory", userStory);
-        map.put("businessValue", businessValue);
-        map.put("acceptance", acceptance);
-        map.put("priority", priority);
-        map.put("status", status);
-        map.put("proposer", proposer);
-        map.put("creator", creator);
-        map.put("createTask", createTask == null || createTask);
-        return map;
-    }
 }

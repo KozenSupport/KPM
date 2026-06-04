@@ -5,9 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 @Schema(description = "项目保存请求")
 public record ProjectRequest(
@@ -26,19 +24,4 @@ public record ProjectRequest(
     public List<ProjectStageRequest> safeStages() { return stages == null ? List.of() : stages; }
     public String safeSalesability() { return salesability; }
     public Object safeUnsellableReason() { return "可销售".equals(safeSalesability()) ? null : unsellableReason; }
-
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("externalName", externalName);
-        map.put("internalName", internalName);
-        map.put("modelName", modelName);
-        map.put("managerAccount", managerAccount);
-        map.put("status", status);
-        map.put("salesability", safeSalesability());
-        map.put("unsellableReason", safeUnsellableReason());
-        map.put("description", description);
-        map.put("members", safeMembers().stream().map(ProjectMemberRequest::toMap).toList());
-        map.put("stages", safeStages().stream().map(ProjectStageRequest::toMap).toList());
-        return map;
-    }
 }

@@ -1,13 +1,11 @@
 package com.kozen.kpm.resource.service.impl;
 
 import com.kozen.kpm.common.util.IdUtil;
-import com.kozen.kpm.common.util.JsonUtil;
 import com.kozen.kpm.resource.converter.ResourceConverter;
 import com.kozen.kpm.resource.dto.DepartmentDto;
 import com.kozen.kpm.resource.dto.DepartmentRequest;
 import com.kozen.kpm.resource.dto.EnumItemDto;
 import com.kozen.kpm.resource.dto.EnumItemRequest;
-import com.kozen.kpm.resource.dto.PrototypeStateRequest;
 import com.kozen.kpm.resource.dto.ResourceBootstrapDto;
 import com.kozen.kpm.resource.dto.RoleDto;
 import com.kozen.kpm.resource.dto.RoleRequest;
@@ -23,7 +21,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Default resource service implementation.
@@ -54,20 +51,6 @@ public class ResourceServiceImpl implements ResourceService {
                 resourceMapper.enumItems().stream().map(resourceConverter::toEnumItemDto).toList(),
                 resourceMapper.taskStatusTransitions().stream().map(resourceConverter::toTaskStatusTransitionDto).toList()
         );
-    }
-
-    @Override
-    public Object prototypeState() {
-        List<String> rows = resourceMapper.prototypeSnapshots();
-        return rows.isEmpty() ? Map.of() : JsonUtil.fromJson(rows.getFirst());
-    }
-
-    @Override
-    public boolean savePrototypeState(PrototypeStateRequest request) {
-        Object state = request == null || request.state() == null ? Map.of() : request.state();
-        String updatedBy = request == null || request.updatedBy() == null || request.updatedBy().isBlank() ? "prototype" : request.updatedBy().trim();
-        resourceMapper.upsertPrototypeSnapshot(JsonUtil.toJson(state), updatedBy);
-        return true;
     }
 
     @Override
@@ -271,6 +254,6 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     private String id(String prefix, Object seed) {
-        return prefix + "-" + IdUtil.slug(String.valueOf(seed), prefix) + "-" + Long.toString(System.currentTimeMillis(), 36);
+        return IdUtil.numericId();
     }
 }

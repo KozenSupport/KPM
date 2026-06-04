@@ -6,10 +6,6 @@ spring:
     name: kpm-file-service
   config:
     import: optional:nacos:${spring.application.name}.${spring.cloud.nacos.config.file-extension:yaml}
-  datasource:
-    url: jdbc:postgresql://${KPM_DB_HOST:127.0.0.1}:${KPM_DB_PORT:5432}/${KPM_DB_NAME:kpm}
-    username: ${KPM_DB_USER:kpm}
-    password: ${KPM_DB_PASSWORD:kpm_dev_password}
   servlet:
     multipart:
       max-file-size: ${KPM_UPLOAD_MAX_FILE_SIZE:200MB}

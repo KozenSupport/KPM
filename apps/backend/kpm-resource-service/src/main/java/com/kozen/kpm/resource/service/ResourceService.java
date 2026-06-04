@@ -4,7 +4,6 @@ import com.kozen.kpm.resource.dto.DepartmentDto;
 import com.kozen.kpm.resource.dto.DepartmentRequest;
 import com.kozen.kpm.resource.dto.EnumItemDto;
 import com.kozen.kpm.resource.dto.EnumItemRequest;
-import com.kozen.kpm.resource.dto.PrototypeStateRequest;
 import com.kozen.kpm.resource.dto.ResourceBootstrapDto;
 import com.kozen.kpm.resource.dto.RoleDto;
 import com.kozen.kpm.resource.dto.RoleRequest;
@@ -18,17 +17,11 @@ import java.util.List;
 /**
  * Resource domain service.
  * Responsible for users, departments, roles, permissions, enums, task-status transitions,
- * and current prototype pilot-state persistence.
+ * and other shared resource-management data.
  */
 public interface ResourceService {
     /** Load all resource data required by the frontend bootstrap process. */
     ResourceBootstrapDto bootstrap();
-
-    /** Load persisted prototype state for pilot validation. */
-    Object prototypeState();
-
-    /** Save current prototype UI state to PostgreSQL for pilot validation. */
-    boolean savePrototypeState(PrototypeStateRequest request);
 
     /** Query users with departments, roles and direct permissions. */
     List<UserResourceDto> users();

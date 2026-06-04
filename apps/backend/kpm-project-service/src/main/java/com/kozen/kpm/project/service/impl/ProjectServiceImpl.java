@@ -4,16 +4,39 @@ import com.kozen.kpm.common.dto.FileMetadataRequest;
 import com.kozen.kpm.common.util.IdUtil;
 import com.kozen.kpm.common.util.JsonUtil;
 import com.kozen.kpm.common.util.ValidationUtil;
+import com.kozen.kpm.project.converter.ProjectConverter;
 import com.kozen.kpm.project.dto.ArchiveProjectRequest;
 import com.kozen.kpm.project.dto.LinkCustomerRequest;
+import com.kozen.kpm.project.dto.ProcessTemplateDto;
 import com.kozen.kpm.project.dto.ProcessTemplateRequest;
+import com.kozen.kpm.project.dto.ProcessTemplateWriteCommand;
+import com.kozen.kpm.project.dto.ProjectCustomerDto;
 import com.kozen.kpm.project.dto.ProjectCustomerStatusRequest;
+import com.kozen.kpm.project.dto.ProjectDto;
+import com.kozen.kpm.project.dto.ProjectMemberRequest;
 import com.kozen.kpm.project.dto.ProjectMembersRequest;
 import com.kozen.kpm.project.dto.ProjectRequest;
+import com.kozen.kpm.project.dto.ProjectSkuDto;
 import com.kozen.kpm.project.dto.ProjectSkuRequest;
+import com.kozen.kpm.project.dto.ProjectSkuWriteCommand;
+import com.kozen.kpm.project.dto.ProjectStageDto;
+import com.kozen.kpm.project.dto.ProjectStageRequest;
+import com.kozen.kpm.project.dto.ProjectWriteCommand;
+import com.kozen.kpm.project.dto.RequirementDto;
+import com.kozen.kpm.project.dto.RequirementOverviewDto;
 import com.kozen.kpm.project.dto.RequirementRequest;
+import com.kozen.kpm.project.dto.RequirementTaskWriteCommand;
+import com.kozen.kpm.project.dto.RequirementWriteCommand;
+import com.kozen.kpm.project.dto.StageAssigneeRequest;
 import com.kozen.kpm.project.dto.StageRecordRequest;
 import com.kozen.kpm.project.dto.StageStatusRequest;
+import com.kozen.kpm.project.entity.ProcessTemplateEntity;
+import com.kozen.kpm.project.entity.ProjectEntity;
+import com.kozen.kpm.project.entity.ProjectFileEntity;
+import com.kozen.kpm.project.entity.ProjectSkuEntity;
+import com.kozen.kpm.project.entity.ProjectStageEntity;
+import com.kozen.kpm.project.entity.RequirementEntity;
+import com.kozen.kpm.project.entity.UserLookupEntity;
 import com.kozen.kpm.project.mapper.ProjectMapper;
 import com.kozen.kpm.project.service.ProjectService;
 import org.springframework.stereotype.Service;
@@ -21,62 +44,54 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
-/**
- * Default project service implementation.
- */
+/** Default project service implementation with typed DTO/entity boundaries. */
 @Service
 public class ProjectServiceImpl implements ProjectService {
-    private static final String DEFAULT_TEMPLATE_ID = "tpl-standard-pos";
-
     private final ProjectMapper projectMapper;
+    private final ProjectConverter projectConverter;
 
-    public ProjectServiceImpl(ProjectMapper projectMapper) {
+    public ProjectServiceImpl(ProjectMapper projectMapper, ProjectConverter projectConverter) {
         this.projectMapper = projectMapper;
+        this.projectConverter = projectConverter;
     }
 
     @Override
-    public List<Map<String, Object>> list(String keyword, String salesability, Boolean archived) {
-        List<Map<String, Object>> projects = projectMapper.list(keyword, salesability, archived);
-        projects.forEach(this::enrichProject);
-        return projects;
+    public List<ProjectDto> list(String keyword, String salesability, Boolean archived) {
+        return projectMapper.list(keyword, salesability, archived).stream().map(this::enrichProject).toList();
     }
 
     @Override
-    public Map<String, Object> detail(String id) {
-        Map<String, Object> project = projectMapper.load(id);
-        enrichProject(project);
-        return project;
+    public ProjectDto detail(String id) {
+        return enrichProject(requireProject(id));
     }
 
     @Override
     @Transactional
-    public Map<String, Object> create(ProjectRequest request) {
-        Map<String, Object> body = request.toMap();
+    public ProjectDto create(ProjectRequest request) {
         String id = uniqueProjectId(request.externalName());
-        String projectStatus = resolveDefault(body.get("status"), "project_status", "项目状态");
+        String projectStatus = resolveDefault(request.status(), "project_status", "项目状态");
         String salesability = resolveDefault(request.safeSalesability(), "salesability", "可销售状态");
-        Object unsellableReason = "可销售".equals(salesability) ? null : request.unsellableReason();
-        Map<String, Object> manager = requireUser(request.managerAccount(), "项目负责人");
-        projectMapper.insertProject(id, body, projectStatus, salesability, unsellableReason, String.valueOf(manager.get("id")), String.valueOf(manager.get("account")));
-        replaceProjectMembers(id, body);
-        createProjectStages(id, body);
+        String unsellableReason = "可销售".equals(salesability) ? null : request.unsellableReason();
+        UserLookupEntity manager = requireUser(request.managerAccount(), "项目负责人");
+        projectMapper.insertProject(new ProjectWriteCommand(id, request.externalName(), request.internalName(), request.modelName(), manager.getId(), manager.getAccount(), projectStatus, salesability, unsellableReason, request.description()));
+        replaceProjectMembers(id, request.safeMembers(), request.managerAccount());
+        createProjectStages(id, request.safeStages());
         syncProjectStatus(id);
-        publishProjectCreatedEvent(id, body);
+        publishProjectCreatedEvent(id, request, manager);
         return detail(id);
     }
 
     @Override
     @Transactional
-    public Map<String, Object> update(String id, ProjectRequest request) {
-        Map<String, Object> body = request.toMap();
+    public ProjectDto update(String id, ProjectRequest request) {
+        ensureProjectExists(id);
         String salesability = resolveDefault(request.safeSalesability(), "salesability", "可销售状态");
-        Object unsellableReason = "可销售".equals(salesability) ? null : request.unsellableReason();
-        Map<String, Object> manager = requireUser(request.managerAccount(), "项目负责人");
-        projectMapper.updateProject(id, body, salesability, unsellableReason, String.valueOf(manager.get("id")), String.valueOf(manager.get("account")));
-        replaceProjectMembers(id, body);
-        replaceStageAssignees(id, body);
+        String unsellableReason = "可销售".equals(salesability) ? null : request.unsellableReason();
+        UserLookupEntity manager = requireUser(request.managerAccount(), "项目负责人");
+        projectMapper.updateProject(new ProjectWriteCommand(id, request.externalName(), request.internalName(), request.modelName(), manager.getId(), manager.getAccount(), request.status(), salesability, unsellableReason, request.description()));
+        replaceProjectMembers(id, request.safeMembers(), request.managerAccount());
+        replaceStageAssignees(id, request.safeStages());
         syncProjectStatus(id);
         return detail(id);
     }
@@ -89,57 +104,61 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional
-    public Map<String, Object> updateStage(String stageId, StageStatusRequest request) {
+    public ProjectDto updateStage(String stageId, StageStatusRequest request) {
         projectMapper.updateStageStatus(stageId, request.status());
-        Map<String, Object> stage = projectMapper.stage(stageId);
-        syncProjectStatus(String.valueOf(stage.get("projectId")));
-        return stage;
+        ProjectStageEntity stage = requireStage(stageId);
+        syncProjectStatus(stage.getProjectId());
+        return detail(stage.getProjectId());
     }
 
     @Override
     @Transactional
-    public Map<String, Object> replaceMembers(String id, ProjectMembersRequest request) {
-        replaceProjectMembers(id, request.toMap());
+    public ProjectDto replaceMembers(String id, ProjectMembersRequest request) {
+        ProjectEntity project = requireProject(id);
+        replaceProjectMembers(id, request.safeMembers(), stringValue(request.managerAccount()) == null ? project.getManagerAccount() : request.managerAccount());
         return detail(id);
     }
 
     @Override
-    public List<Map<String, Object>> skus(String projectId) {
+    public List<ProjectSkuDto> skus(String projectId) {
         ensureProjectExists(projectId);
-        return projectMapper.skus(projectId);
+        return projectMapper.skus(projectId).stream().map(projectConverter::toSkuDto).toList();
     }
 
     @Override
     @Transactional
-    public Map<String, Object> createSku(String projectId, ProjectSkuRequest request, String operator) {
+    public ProjectSkuDto createSku(String projectId, ProjectSkuRequest request, String operator) {
         ensureProjectExists(projectId);
         String id = IdUtil.nanoId("sku");
-        projectMapper.insertSku(id, projectId, request.toMap(), stringValue(operator) == null ? "system" : operator);
-        return projectMapper.sku(projectId, id);
+        String resolvedOperator = resolveOperator(operator);
+        projectMapper.insertSku(ProjectSkuWriteCommand.from(id, projectId, request, resolvedOperator));
+        return projectConverter.toSkuDto(projectMapper.sku(projectId, id));
     }
 
     @Override
     @Transactional
-    public Map<String, Object> updateSku(String projectId, String skuId, ProjectSkuRequest request, String operator) {
+    public ProjectSkuDto updateSku(String projectId, String skuId, ProjectSkuRequest request, String operator) {
         ensureProjectExists(projectId);
-        int updated = projectMapper.updateSku(projectId, skuId, request.toMap(), stringValue(operator) == null ? "system" : operator);
+        String resolvedOperator = resolveOperator(operator);
+        int updated = projectMapper.updateSku(ProjectSkuWriteCommand.from(skuId, projectId, request, resolvedOperator));
         if (updated == 0) {
             throw new IllegalArgumentException("SKU不存在或已删除");
         }
-        return projectMapper.sku(projectId, skuId);
+        return projectConverter.toSkuDto(projectMapper.sku(projectId, skuId));
     }
 
     @Override
     @Transactional
     public boolean deleteSku(String projectId, String skuId, String operator) {
         ensureProjectExists(projectId);
-        return projectMapper.deleteSku(projectId, skuId, stringValue(operator) == null ? "system" : operator) > 0;
+        return projectMapper.deleteSku(projectId, skuId, resolveOperator(operator)) > 0;
     }
 
     @Override
     @Transactional
-    public Map<String, Object> linkCustomer(String projectId, LinkCustomerRequest request) {
-        String customerId = request.customerId();
+    public ProjectDto linkCustomer(String projectId, LinkCustomerRequest request) {
+        ensureProjectExists(projectId);
+        String customerId = ValidationUtil.requireText(request.customerId(), "客户ID", 80);
         String projectStatus = resolveDefault(request.projectStatus(), "customer_project_status", "客户项目状态");
         List<String> existing = projectMapper.projectCustomerIds(projectId, customerId);
         if (existing.isEmpty()) {
@@ -152,14 +171,15 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional
-    public Map<String, Object> updateProjectCustomerStatus(String projectId, String customerId, ProjectCustomerStatusRequest request) {
+    public ProjectDto updateProjectCustomerStatus(String projectId, String customerId, ProjectCustomerStatusRequest request) {
+        ensureProjectExists(projectId);
         projectMapper.updateProjectCustomerStatus(projectId, customerId, request.projectStatus());
         return detail(projectId);
     }
 
     @Override
     @Transactional
-    public Map<String, Object> addStageRecord(String stageId, StageRecordRequest request) {
+    public ProjectDto addStageRecord(String stageId, StageRecordRequest request) {
         boolean hasText = request.content() != null && !request.content().isBlank();
         boolean hasFiles = request.attachments() != null && !request.attachments().isEmpty();
         if (!hasText && !hasFiles) {
@@ -167,64 +187,70 @@ public class ProjectServiceImpl implements ProjectService {
         }
         String author = ValidationUtil.requireText(request.author(), "阶段留言人", 60);
         projectMapper.insertStageRecord(IdUtil.nanoId("sr"), stageId, author, request.content(), request.safeAttachments());
-        Map<String, Object> stage = projectMapper.stage(stageId);
-        return detail(String.valueOf(stage.get("projectId")));
+        ProjectStageEntity stage = requireStage(stageId);
+        return detail(stage.getProjectId());
     }
 
     @Override
     @Transactional
-    public Map<String, Object> addStageMaterial(String stageId, FileMetadataRequest request) {
-        projectMapper.insertStageMaterial(IdUtil.nanoId("sm"), stageId, request.toMap());
-        Map<String, Object> stage = projectMapper.stage(stageId);
-        return detail(String.valueOf(stage.get("projectId")));
+    public ProjectDto addStageMaterial(String stageId, FileMetadataRequest request) {
+        projectMapper.insertStageMaterial(IdUtil.nanoId("sm"), stageId, request);
+        ProjectStageEntity stage = requireStage(stageId);
+        return detail(stage.getProjectId());
     }
 
     @Override
     @Transactional
-    public Map<String, Object> publishStageMaterial(String materialId) {
-        Map<String, Object> material = projectMapper.stageMaterialForPublish(materialId);
+    public ProjectDto publishStageMaterial(String materialId) {
+        ProjectFileEntity material = projectMapper.stageMaterialForPublish(materialId);
+        if (material == null) {
+            throw new IllegalArgumentException("阶段资料不存在或已删除");
+        }
         projectMapper.markStageMaterialPublished(materialId);
         projectMapper.insertProjectMaterial(IdUtil.nanoId("mat"), material);
-        return detail(String.valueOf(material.get("projectId")));
+        return detail(material.getProjectId());
     }
 
     @Override
     @Transactional
-    public Map<String, Object> archive(String id, ArchiveProjectRequest request) {
+    public ProjectDto archive(String id, ArchiveProjectRequest request) {
+        ensureProjectExists(id);
         projectMapper.archiveProject(id, request.archived());
         return detail(id);
     }
 
     @Override
-    public List<Map<String, Object>> requirementOverview(String id) {
-        return projectMapper.requirementOverview(id);
+    public List<RequirementOverviewDto> requirementOverview(String id) {
+        ensureProjectExists(id);
+        return projectMapper.requirementOverview(id).stream().map(projectConverter::toRequirementOverviewDto).toList();
     }
 
     @Override
     @Transactional
-    public Map<String, Object> createRequirement(String projectId, String customerId, RequirementRequest request) {
-        Map<String, Object> body = request.toMap();
+    public RequirementDto createRequirement(String projectId, String customerId, RequirementRequest request) {
+        ensureProjectExists(projectId);
         String requirementId = nextRequirementId();
         String taskId = null;
-        body.put("status", resolveDefault(body.get("status"), "requirement_status", "需求状态"));
-        if (Boolean.TRUE.equals(body.getOrDefault("createTask", true))) {
-            taskId = nextTaskId();
-            Map<String, Object> creator = requireUser(body.get("creator"), "需求关联任务创建者");
+        String requirementStatus = resolveDefault(request.status(), "requirement_status", "需求状态");
+        if (request.createTask() == null || request.createTask()) {
+            taskId = IdUtil.nanoId("task");
+            String taskNo = nextTaskNo(customerId);
+            UserLookupEntity creator = requireUser(request.creator(), "需求关联任务创建者");
             String taskCategory = requiredEnumBySemantic("task_category", "REQUIREMENT", "需求任务分类");
             String taskStatus = resolveDefault(null, "task_status", "任务状态");
-            projectMapper.insertRequirementTask(taskId, projectId, customerId, body, taskCategory, taskStatus, "需求创建自动生成", String.valueOf(creator.get("id")), String.valueOf(creator.get("name")));
-            projectMapper.insertRequirementTaskAssignee(taskId, String.valueOf(creator.get("id")), creator.get("name"));
+            projectMapper.insertRequirementTask(new RequirementTaskWriteCommand(taskId, taskNo, projectId, customerId, request.title(), request.userStory(), request.priority(), null, taskCategory, taskStatus, "需求创建自动生成", creator.getId(), creator.getName()));
+            projectMapper.insertRequirementTaskAssignee(taskId, creator.getId(), creator.getName());
         }
-        projectMapper.insertRequirement(requirementId, projectId, customerId, body, taskId);
-        return projectMapper.requirement(requirementId);
+        projectMapper.insertRequirement(new RequirementWriteCommand(requirementId, projectId, customerId, request.title(), request.userStory(), request.businessValue(), request.acceptance(), request.priority(), requirementStatus, request.proposer(), request.creator(), null, taskId));
+        return projectConverter.toRequirementDto(projectMapper.requirement(requirementId));
     }
 
     @Override
     @Transactional
-    public Map<String, Object> voidRequirement(String id) {
+    public RequirementDto voidRequirement(String id) {
         String voidStatus = requiredEnumBySemantic("requirement_status", "VOID", "需求作废状态");
         projectMapper.voidRequirement(id, voidStatus);
-        return projectMapper.requirement(id);
+        return projectConverter.toRequirementDto(projectMapper.requirement(id));
     }
 
     @Override
@@ -234,33 +260,25 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public List<Map<String, Object>> templates() {
-        List<Map<String, Object>> templates = projectMapper.templates();
-        templates.forEach(this::enrichTemplate);
-        return templates;
+    public List<ProcessTemplateDto> templates() {
+        return projectMapper.templates().stream().map(this::enrichTemplate).toList();
     }
 
     @Override
     @Transactional
-    public Map<String, Object> createTemplate(ProcessTemplateRequest request) {
-        Map<String, Object> body = request.toMap();
+    public ProcessTemplateDto createTemplate(ProcessTemplateRequest request) {
         String id = uniqueTemplateId(request.name());
-        projectMapper.insertTemplate(id, body);
-        replaceTemplateStages(id, body);
-        Map<String, Object> template = projectMapper.template(id);
-        enrichTemplate(template);
-        return template;
+        projectMapper.insertTemplate(new ProcessTemplateWriteCommand(id, request.name(), request.scope(), request.status()));
+        replaceTemplateStages(id, request.safeStages());
+        return enrichTemplate(projectMapper.template(id));
     }
 
     @Override
     @Transactional
-    public Map<String, Object> updateTemplate(String id, ProcessTemplateRequest request) {
-        Map<String, Object> body = request.toMap();
-        projectMapper.updateTemplate(id, body);
-        replaceTemplateStages(id, body);
-        Map<String, Object> template = projectMapper.template(id);
-        enrichTemplate(template);
-        return template;
+    public ProcessTemplateDto updateTemplate(String id, ProcessTemplateRequest request) {
+        projectMapper.updateTemplate(new ProcessTemplateWriteCommand(id, request.name(), request.scope(), request.status()));
+        replaceTemplateStages(id, request.safeStages());
+        return enrichTemplate(projectMapper.template(id));
     }
 
     @Override
@@ -269,94 +287,71 @@ public class ProjectServiceImpl implements ProjectService {
         return true;
     }
 
-    private void enrichProject(Map<String, Object> project) {
+    private ProjectDto enrichProject(ProjectEntity project) {
         if (project == null) {
             throw new IllegalArgumentException("项目不存在");
         }
-        String id = String.valueOf(project.get("id"));
-        project.put("managerName", projectMapper.managerName(project.getOrDefault("managerUserId", project.get("managerAccount"))));
-        project.put("members", projectMapper.members(id));
-        project.put("skus", projectMapper.skus(id));
-        List<Map<String, Object>> stages = projectMapper.stages(id);
-        stages.forEach(stage -> {
-            Object stageId = stage.get("id");
-            stage.put("assignees", projectMapper.stageAssignees(stageId));
-            stage.put("materials", projectMapper.stageMaterials(stageId));
-            stage.put("records", projectMapper.stageRecords(stageId));
-        });
-        project.put("stages", stages);
-
-        List<Map<String, Object>> projectCustomers = projectMapper.projectCustomers(id);
-        projectCustomers.forEach(projectCustomer -> projectCustomer.put("requirements", projectMapper.requirements(id, projectCustomer.get("customerId"))));
-        project.put("projectCustomers", projectCustomers);
-        project.put("projectMaterials", projectMapper.projectMaterials(id));
+        String id = project.getId();
+        String managerName = projectMapper.managerName(stringValue(project.getManagerUserId()) == null ? project.getManagerAccount() : project.getManagerUserId());
+        List<ProjectStageDto> stages = projectMapper.stages(id).stream()
+                .map(stage -> projectConverter.toStageDto(stage, projectMapper.stageAssignees(stage.getId()), projectMapper.stageMaterials(stage.getId()), projectMapper.stageRecords(stage.getId())))
+                .toList();
+        List<ProjectCustomerDto> customers = projectMapper.projectCustomers(id).stream()
+                .map(customer -> projectConverter.toCustomerDto(customer, projectMapper.requirements(id, customer.getCustomerId())))
+                .toList();
+        return projectConverter.toProjectDto(project, managerName, projectMapper.members(id), projectMapper.skus(id), stages, customers, projectMapper.projectMaterials(id));
     }
 
-    private void enrichTemplate(Map<String, Object> template) {
-        template.put("stages", projectMapper.templateStageNames(String.valueOf(template.get("id"))));
+    private ProcessTemplateDto enrichTemplate(ProcessTemplateEntity template) {
+        if (template == null) {
+            throw new IllegalArgumentException("流程模板不存在");
+        }
+        return projectConverter.toTemplateDto(template, projectMapper.templateStageNames(template.getId()));
     }
 
-    @SuppressWarnings("unchecked")
-    private void createProjectStages(String projectId, Map<String, Object> body) {
-        List<Object> providedStages = (List<Object>) body.getOrDefault("stages", List.of());
+    private void createProjectStages(String projectId, List<ProjectStageRequest> providedStages) {
         if (!providedStages.isEmpty()) {
             int order = 1;
-            for (Object rawStage : providedStages) {
-                Map<String, Object> stage = rawStage instanceof Map<?, ?> ? (Map<String, Object>) rawStage : Map.of("name", rawStage);
+            for (ProjectStageRequest stage : providedStages) {
                 String stageId = IdUtil.nanoId("st");
-                String stageName = ValidationUtil.requireText(stage.getOrDefault("name", stage.get("stageName")), "阶段名称", 80);
-                projectMapper.insertStage(stageId, projectId, stageName, order++, resolveDefault(stage.get("status"), "stage_status", "阶段状态"));
-                insertStageAssignees(stageId, stage);
+                String stageName = ValidationUtil.requireText(stage.name(), "阶段名称", 80);
+                projectMapper.insertStage(stageId, projectId, stageName, order++, resolveDefault(stage.status(), "stage_status", "阶段状态"));
+                insertStageAssignees(stageId, stage.safeAssignees());
             }
             return;
         }
 
-        List<String> stages = projectMapper.templateStageNames(DEFAULT_TEMPLATE_ID);
+        List<ProcessTemplateEntity> templates = projectMapper.templates();
+        List<String> stages = templates.isEmpty() ? List.of() : projectMapper.templateStageNames(templates.getFirst().getId());
         int order = 1;
         for (String stage : stages) {
             projectMapper.insertStage(IdUtil.nanoId("st"), projectId, stage, order++, resolveDefault(null, "stage_status", "阶段状态"));
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private void replaceProjectMembers(String projectId, Map<String, Object> body) {
+    private void replaceProjectMembers(String projectId, List<ProjectMemberRequest> requestedMembers, String managerAccount) {
         projectMapper.deleteMembers(projectId);
-        List<Object> members = new ArrayList<>((List<Object>) body.getOrDefault("members", List.of()));
-        String managerAccount = String.valueOf(body.getOrDefault("managerAccount", ""));
-        boolean hasManager = members.stream()
-                .filter(item -> item instanceof Map<?, ?>)
-                .map(item -> (Map<String, Object>) item)
-                .anyMatch(item -> managerAccount.equals(String.valueOf(item.getOrDefault("userAccount", item.getOrDefault("account", "")))));
-        if (!managerAccount.isBlank() && !hasManager) {
-            members.add(Map.of("userAccount", managerAccount, "role", "项目负责人"));
+        List<ProjectMemberRequest> members = new ArrayList<>(requestedMembers);
+        boolean hasManager = members.stream().anyMatch(item -> managerAccount.equals(item.userAccount()));
+        if (stringValue(managerAccount) != null && !hasManager) {
+            members.add(new ProjectMemberRequest(managerAccount, "项目负责人"));
         }
-        for (Object rawMember : members) {
-            if (!(rawMember instanceof Map<?, ?>)) {
+        for (ProjectMemberRequest member : members) {
+            String account = stringValue(member.userAccount());
+            if (account == null) {
                 continue;
             }
-            Map<String, Object> member = (Map<String, Object>) rawMember;
-            String account = String.valueOf(member.getOrDefault("userAccount", member.getOrDefault("account", "")));
-            if (account.isBlank()) {
-                continue;
-            }
-            String role = ValidationUtil.requireText(member.getOrDefault("role", member.get("roleName")), "项目成员角色", 60);
-            Map<String, Object> user = requireUser(account, "项目成员");
-            projectMapper.insertMember(IdUtil.nanoId("pm"), projectId, String.valueOf(user.get("id")), String.valueOf(user.get("account")), role);
+            String role = ValidationUtil.requireText(member.role(), "项目成员角色", 60);
+            UserLookupEntity user = requireUser(account, "项目成员");
+            projectMapper.insertMember(IdUtil.nanoId("pm"), projectId, user.getId(), user.getAccount(), role);
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private void replaceStageAssignees(String projectId, Map<String, Object> body) {
-        List<Object> stages = (List<Object>) body.getOrDefault("stages", List.of());
-        for (Object rawStage : stages) {
-            if (!(rawStage instanceof Map<?, ?>)) {
-                continue;
-            }
-            Map<String, Object> stage = (Map<String, Object>) rawStage;
-            String stageId = stringValue(stage.get("id"));
+    private void replaceStageAssignees(String projectId, List<ProjectStageRequest> stages) {
+        for (ProjectStageRequest stage : stages) {
+            String stageId = stringValue(stage.id());
             if (stageId == null) {
-                String stageName = stringValue(stage.getOrDefault("name", stage.get("stageName")));
-                List<String> ids = projectMapper.stageIdsByName(projectId, stageName);
+                List<String> ids = projectMapper.stageIdsByName(projectId, stage.name());
                 if (!ids.isEmpty()) {
                     stageId = ids.getFirst();
                 }
@@ -364,33 +359,27 @@ public class ProjectServiceImpl implements ProjectService {
             if (stageId == null) {
                 continue;
             }
-            if (stage.containsKey("status")) {
-                projectMapper.updateStageStatus(stageId, stage.get("status"));
+            if (stage.status() != null && !stage.status().isBlank()) {
+                projectMapper.updateStageStatus(stageId, stage.status());
             }
             projectMapper.deleteStageAssignees(stageId);
-            insertStageAssignees(stageId, stage);
+            insertStageAssignees(stageId, stage.safeAssignees());
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private void insertStageAssignees(String stageId, Map<String, Object> stage) {
-        for (Object rawAssignee : (List<Object>) stage.getOrDefault("assignees", List.of())) {
-            if (!(rawAssignee instanceof Map<?, ?>)) {
-                continue;
-            }
-            Map<String, Object> assignee = (Map<String, Object>) rawAssignee;
-            String type = ValidationUtil.requireText(assignee.getOrDefault("type", assignee.get("assigneeType")), "阶段负责人类型", 20);
-            String account = stringValue(assignee.get("account"));
-            Object nameValue = assignee.getOrDefault("name", assignee.get("assigneeName"));
+    private void insertStageAssignees(String stageId, List<StageAssigneeRequest> assignees) {
+        for (StageAssigneeRequest assignee : assignees) {
+            String type = ValidationUtil.requireText(assignee.type(), "阶段负责人类型", 20);
+            String account = stringValue(assignee.account());
+            String name = stringValue(assignee.name());
             String userId = null;
-            String name = nameValue == null ? null : String.valueOf(nameValue);
             if ("user".equals(type)) {
-                Map<String, Object> user = requireUser(account != null ? account : nameValue, "阶段负责人");
-                userId = String.valueOf(user.get("id"));
-                account = String.valueOf(user.get("account"));
-                name = String.valueOf(user.get("name"));
+                UserLookupEntity user = requireUser(account != null ? account : name, "阶段负责人");
+                userId = user.getId();
+                account = user.getAccount();
+                name = user.getName();
             }
-            if (name == null || "null".equals(name) || name.isBlank()) {
+            if (name == null) {
                 continue;
             }
             projectMapper.insertStageAssignee(IdUtil.nanoId("sa"), stageId, type, name, account, userId);
@@ -408,25 +397,19 @@ public class ProjectServiceImpl implements ProjectService {
         projectMapper.updateProjectStatus(projectId, nextStatus);
     }
 
-    @SuppressWarnings("unchecked")
-    private void replaceTemplateStages(String templateId, Map<String, Object> body) {
+    private void replaceTemplateStages(String templateId, List<String> stages) {
         projectMapper.deleteTemplateStages(templateId);
         int sortOrder = 1;
-        for (Object stage : (List<Object>) body.getOrDefault("stages", List.of())) {
-            projectMapper.insertTemplateStage(IdUtil.nanoId("tpl-stage"), templateId, stage, sortOrder++);
+        for (String stageName : stages) {
+            projectMapper.insertTemplateStage(IdUtil.nanoId("tpl-stage"), templateId, ValidationUtil.requireText(stageName, "模板阶段名称", 80), sortOrder++);
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private void publishProjectCreatedEvent(String projectId, Map<String, Object> body) {
+    private void publishProjectCreatedEvent(String projectId, ProjectRequest request, UserLookupEntity manager) {
         List<String> recipients = new ArrayList<>();
-        recipients.add(String.valueOf(requireUser(body.get("managerAccount"), "项目负责人").get("id")));
-        for (Object rawMember : (List<Object>) body.getOrDefault("members", List.of())) {
-            if (!(rawMember instanceof Map<?, ?> rawMap)) continue;
-            @SuppressWarnings("unchecked")
-            Map<String, Object> member = (Map<String, Object>) rawMap;
-            Object account = member.getOrDefault("userAccount", member.get("account"));
-            recipients.add(String.valueOf(requireUser(account, "项目成员").get("id")));
+        recipients.add(manager.getId());
+        for (ProjectMemberRequest member : request.safeMembers()) {
+            recipients.add(requireUser(member.userAccount(), "项目成员").getId());
         }
         List<String> distinctRecipients = recipients.stream().filter(value -> value != null && !value.isBlank()).distinct().toList();
         if (distinctRecipients.isEmpty()) {
@@ -437,7 +420,7 @@ public class ProjectServiceImpl implements ProjectService {
                 "PROJECT_CREATED",
                 projectId,
                 "你被加入新项目",
-                "项目 " + body.get("externalName") + " 已创建，你已被加入项目成员。",
+                "项目 " + request.externalName() + " 已创建，你已被加入项目成员。",
                 JsonUtil.toJson(distinctRecipients)
         );
     }
@@ -461,12 +444,12 @@ public class ProjectServiceImpl implements ProjectService {
         return value;
     }
 
-    private Map<String, Object> requireUser(Object accountOrName, String label) {
+    private UserLookupEntity requireUser(String accountOrName, String label) {
         String value = stringValue(accountOrName);
         if (value == null) {
             throw new IllegalArgumentException(label + "必须从已有用户中选择");
         }
-        List<Map<String, Object>> users = projectMapper.usersByAccountOrName(value);
+        List<UserLookupEntity> users = projectMapper.usersByAccountOrName(value);
         if (users.isEmpty()) {
             throw new IllegalArgumentException(label + "不存在，请从已有用户中选择");
         }
@@ -474,33 +457,30 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     private String uniqueProjectId(String source) {
-        String base = IdUtil.slug(source, "project");
-        String candidate = base;
-        int index = 2;
-        while (!projectMapper.projectIds(candidate).isEmpty()) {
-            candidate = base + "-" + index++;
-        }
-        return candidate;
+        return IdUtil.numericId();
     }
 
     private String uniqueTemplateId(String source) {
-        String base = "tpl-" + IdUtil.slug(source, "template");
-        String candidate = base;
-        int index = 2;
-        while (!projectMapper.templateIds(candidate).isEmpty()) {
-            candidate = base + "-" + index++;
-        }
-        return candidate;
+        return IdUtil.numericId();
     }
 
     private String nextRequirementId() {
-        Integer max = projectMapper.maxRequirementNumber();
-        return "REQ-" + String.format("%03d", (max == null ? 0 : max) + 1);
+        return IdUtil.numericId();
     }
 
-    private String nextTaskId() {
-        Integer max = projectMapper.maxTaskNumber();
-        return "KPM-" + ((max == null ? 100 : max) + 1);
+    private String nextTaskNo(String customerId) {
+        String shortName = projectMapper.customerShortName(customerId);
+        String prefix = shortName == null || shortName.isBlank() ? "N" : shortName.trim().toUpperCase();
+        Long next = projectMapper.nextTaskNumber();
+        return prefix + (next == null ? 1 : next);
+    }
+
+    private String resolveOperator(String operator) {
+        String value = stringValue(operator);
+        if (value == null) {
+            throw new IllegalArgumentException("操作人不能为空");
+        }
+        return value;
     }
 
     private String stringValue(Object value) {
@@ -510,9 +490,23 @@ public class ProjectServiceImpl implements ProjectService {
         return String.valueOf(value);
     }
 
-    private void ensureProjectExists(String projectId) {
-        if (projectMapper.load(projectId) == null) {
+    private ProjectEntity requireProject(String projectId) {
+        ProjectEntity project = projectMapper.load(projectId);
+        if (project == null) {
             throw new IllegalArgumentException("项目不存在");
         }
+        return project;
+    }
+
+    private ProjectStageEntity requireStage(String stageId) {
+        ProjectStageEntity stage = projectMapper.stage(stageId);
+        if (stage == null) {
+            throw new IllegalArgumentException("阶段不存在");
+        }
+        return stage;
+    }
+
+    private void ensureProjectExists(String projectId) {
+        requireProject(projectId);
     }
 }

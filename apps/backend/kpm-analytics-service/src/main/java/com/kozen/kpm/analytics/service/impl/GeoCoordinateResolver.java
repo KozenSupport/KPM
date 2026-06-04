@@ -3,9 +3,9 @@ package com.kozen.kpm.analytics.service.impl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kozen.kpm.analytics.config.GeocodingProperties;
+import com.kozen.kpm.analytics.entity.GeocodeCacheEntity;
 import com.kozen.kpm.analytics.mapper.AnalyticsMapper;
 
-import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -55,15 +55,15 @@ public class GeoCoordinateResolver {
         String query = normalize(rawQuery);
         if (query.isBlank()) return Optional.empty();
 
-        var cached = analyticsMapper.geocodeCache(query);
+        List<GeocodeCacheEntity> cached = analyticsMapper.geocodeCache(query);
         if (!cached.isEmpty()) {
-            Map<String, Object> row = cached.getFirst();
+            GeocodeCacheEntity row = cached.getFirst();
             return Optional.of(new GeoPoint(
-                    toDouble(row.get("latitude")),
-                    toDouble(row.get("longitude")),
-                    String.valueOf(row.getOrDefault("displayName", rawQuery)),
-                    String.valueOf(row.getOrDefault("provider", "cache")),
-                    String.valueOf(row.getOrDefault("precision", "cached")),
+                    row.getLatitude(),
+                    row.getLongitude(),
+                    firstText(row.getDisplayName(), rawQuery),
+                    firstText(row.getProvider(), "cache"),
+                    firstText(row.getPrecision(), "cached"),
                     query
             ));
         }
@@ -97,13 +97,13 @@ public class GeoCoordinateResolver {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() < 200 || response.statusCode() >= 300) return Optional.empty();
 
-            List<Map<String, Object>> rows = objectMapper.readValue(response.body(), new TypeReference<>() {});
+            List<NominatimResult> rows = objectMapper.readValue(response.body(), new TypeReference<>() {});
             if (rows.isEmpty()) return Optional.empty();
-            Map<String, Object> first = rows.getFirst();
+            NominatimResult first = rows.getFirst();
             return Optional.of(new GeoPoint(
-                    toDouble(first.get("lat")),
-                    toDouble(first.get("lon")),
-                    String.valueOf(first.getOrDefault("display_name", rawQuery)),
+                    Double.parseDouble(first.lat()),
+                    Double.parseDouble(first.lon()),
+                    firstText(first.displayName(), rawQuery),
                     "nominatim",
                     "geocoder",
                     query
@@ -214,9 +214,11 @@ public class GeoCoordinateResolver {
                 .trim();
     }
 
-    private static double toDouble(Object value) {
-        if (value instanceof BigDecimal decimal) return decimal.doubleValue();
-        return Double.parseDouble(String.valueOf(value));
+    public record NominatimResult(
+            @com.fasterxml.jackson.annotation.JsonProperty("lat") String lat,
+            @com.fasterxml.jackson.annotation.JsonProperty("lon") String lon,
+            @com.fasterxml.jackson.annotation.JsonProperty("display_name") String displayName
+    ) {
     }
 
     public record GeoPoint(double latitude, double longitude, String displayName, String provider, String precision, String query) {

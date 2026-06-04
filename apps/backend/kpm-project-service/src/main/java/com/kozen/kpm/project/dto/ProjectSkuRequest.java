@@ -4,8 +4,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @Schema(description = "项目 SKU 保存请求")
 public record ProjectSkuRequest(
@@ -23,12 +21,4 @@ public record ProjectSkuRequest(
 
         Boolean active
 ) {
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("wholeMachinePartNumber", wholeMachinePartNumber);
-        map.put("configurationName", configurationName);
-        map.put("memoryType", memoryType);
-        map.put("active", active == null || active);
-        return map;
-    }
 }

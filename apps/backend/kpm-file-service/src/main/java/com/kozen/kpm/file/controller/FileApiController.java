@@ -3,6 +3,7 @@ package com.kozen.kpm.file.controller;
 import com.kozen.kpm.common.api.ApiResponse;
 import com.kozen.kpm.file.model.DownloadUrlResult;
 import com.kozen.kpm.file.model.FileUploadResult;
+import com.kozen.kpm.file.model.OssStatusResult;
 import com.kozen.kpm.file.service.FileStorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,7 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.Map;
 
 @RestController
 @Validated
@@ -52,7 +52,7 @@ public class FileApiController {
 
     @GetMapping("/oss/status")
     @Operation(summary = "查看 OSS 配置状态", description = "返回 OSS 是否启用、Bucket、根路径等非敏感状态，不返回 AccessKey Secret。")
-    public ApiResponse<Map<String, Object>> ossStatus() {
+    public ApiResponse<OssStatusResult> ossStatus() {
         return ApiResponse.ok(fileStorageService.status());
     }
 }

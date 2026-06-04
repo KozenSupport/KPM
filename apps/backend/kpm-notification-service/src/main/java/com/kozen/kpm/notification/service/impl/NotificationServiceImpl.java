@@ -5,6 +5,9 @@ import com.kozen.kpm.common.util.JsonUtil;
 import com.kozen.kpm.notification.config.NotificationProperties;
 import com.kozen.kpm.notification.converter.NotificationConverter;
 import com.kozen.kpm.notification.dto.InternalMessageDto;
+import com.kozen.kpm.notification.dto.NotificationSettingsDto;
+import com.kozen.kpm.notification.entity.NotificationEventEntity;
+import com.kozen.kpm.notification.entity.UserLookupEntity;
 import com.kozen.kpm.notification.mapper.NotificationMapper;
 import com.kozen.kpm.notification.service.NotificationService;
 import org.springframework.beans.factory.ObjectProvider;
@@ -14,9 +17,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class NotificationServiceImpl implements NotificationService {
@@ -35,19 +36,19 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     @Scheduled(fixedDelayString = "${kpm.notification.processor-interval-ms:15000}")
     public void processPendingEvents() {
-        for (Map<String, Object> event : notificationMapper.pendingEvents(50)) {
-            List<String> recipients = recipientIds(event.get("recipientUserIds"));
+        for (NotificationEventEntity event : notificationMapper.pendingEvents(50)) {
+            List<String> recipients = recipientIds(event.getRecipientUserIds());
             for (String recipientId : recipients) {
                 notificationMapper.insertMessage(
                         IdUtil.nanoId("msg"),
                         recipientId,
-                        event.get("title"),
-                        event.get("content"),
-                        event.getOrDefault("eventType", "system")
+                        event.getTitle(),
+                        event.getContent(),
+                        blankToDefault(event.getEventType(), "system")
                 );
-                sendMailIfEnabled(recipientId, String.valueOf(event.get("title")), String.valueOf(event.get("content")));
+                sendMailIfEnabled(recipientId, event.getTitle(), event.getContent());
             }
-            notificationMapper.markEventProcessed(String.valueOf(event.get("id")));
+            notificationMapper.markEventProcessed(event.getId());
         }
     }
 
@@ -80,17 +81,13 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public Map<String, Object> settings() {
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("refreshIntervalSeconds", properties.getRefreshIntervalSeconds());
-        data.put("mailEnabled", properties.isMailEnabled());
-        return data;
+    public NotificationSettingsDto settings() {
+        return new NotificationSettingsDto(properties.getRefreshIntervalSeconds(), properties.isMailEnabled());
     }
 
-    @SuppressWarnings("unchecked")
-    private List<String> recipientIds(Object raw) {
-        if (raw == null) return List.of();
-        Object parsed = raw instanceof String text ? JsonUtil.fromJson(text) : raw;
+    private List<String> recipientIds(String raw) {
+        if (raw == null || raw.isBlank()) return List.of();
+        Object parsed = JsonUtil.fromJson(raw);
         if (parsed instanceof Collection<?> collection) {
             return collection.stream().map(String::valueOf).filter(value -> !value.isBlank()).distinct().toList();
         }
@@ -98,27 +95,30 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     private String currentUserId(String account) {
-        List<Map<String, Object>> users = notificationMapper.userByAccount(account);
+        List<UserLookupEntity> users = notificationMapper.userByAccount(account);
         if (users.isEmpty()) {
             throw new IllegalArgumentException("用户不存在");
         }
-        return String.valueOf(users.getFirst().get("id"));
+        return users.getFirst().getId();
     }
 
     private void sendMailIfEnabled(String recipientUserId, String title, String content) {
         if (!properties.isMailEnabled() || mailSender == null) return;
         try {
-            Map<String, Object> user = notificationMapper.userById(recipientUserId);
-            String email = String.valueOf(user.getOrDefault("email", ""));
-            if (email.isBlank() || "null".equals(email)) return;
+            UserLookupEntity user = notificationMapper.userById(recipientUserId);
+            if (user == null || user.getEmail() == null || user.getEmail().isBlank()) return;
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(properties.getMailFrom());
-            message.setTo(email);
+            message.setTo(user.getEmail());
             message.setSubject(title);
             message.setText(content);
             mailSender.send(message);
         } catch (Exception ignored) {
             // Mail failures should not block internal messages; production can add retry/dead-letter logic.
         }
+    }
+
+    private String blankToDefault(String value, String defaultValue) {
+        return value == null || value.isBlank() ? defaultValue : value;
     }
 }

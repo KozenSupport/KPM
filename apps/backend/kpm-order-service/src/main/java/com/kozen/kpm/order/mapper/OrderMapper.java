@@ -1,21 +1,53 @@
 package com.kozen.kpm.order.mapper;
 
-import org.apache.ibatis.annotations.Delete;
+import com.kozen.kpm.order.dto.OrderWriteCommand;
+import com.kozen.kpm.order.entity.OrderEntity;
+import com.kozen.kpm.order.entity.OrderHistoryEntity;
+import com.kozen.kpm.order.entity.ProjectSkuEntity;
+import com.kozen.kpm.order.entity.UserLookupEntity;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 
 /** Order data access mapper backed by MyBatis. */
 @Mapper
 public interface OrderMapper {
+    String ORDER_SELECT_COLUMNS = """
+            o.id,
+            o.order_date as orderDate,
+            o.customer_id as customerId,
+            c.name as customerName,
+            c.region as region,
+            o.project_id as projectId,
+            p.external_name as projectName,
+            o.sku_id as skuId,
+            o.sku_snapshot::text as skuSnapshot,
+            o.order_type as orderType,
+            o.status as status,
+            o.quantity as quantity,
+            o.specification as specification,
+            o.expected_ship_date as expectedShipDate,
+            o.planned_ship_date as plannedShipDate,
+            o.actual_ship_date as actualShipDate,
+            o.software_version as softwareVersion,
+            o.currency as currency,
+            o.unit_price as unitPrice,
+            o.amount as amount,
+            o.creator_user_id as creatorUserId,
+            o.creator as creator,
+            ps.whole_machine_part_number as wholeMachinePartNumber,
+            ps.configuration_name as configurationName,
+            ps.memory_type as memoryType,
+            o.created_at as createdAt,
+            o.updated_at as updatedAt
+            """;
+
     @Select("select id, account, email, name from kpm_users where account=#{value} or email=#{value} or name=#{value}")
-    List<Map<String, Object>> usersByAccountOrName(@Param("value") Object value);
+    List<UserLookupEntity> usersByAccountOrName(@Param("value") Object value);
 
     @Select("""
             select semantic from kpm_enum_items
@@ -40,54 +72,79 @@ public interface OrderMapper {
     String enumSemantic(@Param("enumType") String enumType, @Param("value") String value);
 
     @Select("""
-            select id, project_id, whole_machine_part_number, configuration_name, memory_type, active
+            select id,
+                   project_id as projectId,
+                   whole_machine_part_number as wholeMachinePartNumber,
+                   configuration_name as configurationName,
+                   memory_type as memoryType,
+                   active
             from kpm_project_skus
             where id=#{skuId} and project_id=#{projectId} and del_flag=0 and active=true
             """)
-    Map<String, Object> activeProjectSku(@Param("projectId") String projectId, @Param("skuId") String skuId);
+    ProjectSkuEntity activeProjectSku(@Param("projectId") String projectId, @Param("skuId") String skuId);
 
     @Select("select distinct owner_user_id from kpm_customer_owners where customer_id=#{customerId} and owner_user_id is not null")
     List<String> customerOwnerUserIds(@Param("customerId") String customerId);
 
     @Select("""
-            select o.*, c.name as customer_name, c.region, p.external_name as project_name,
-                   ps.whole_machine_part_number, ps.configuration_name, ps.memory_type
+            <script>
+            select ${columns}
             from kpm_orders o join kpm_customers c on c.id=o.customer_id join kpm_projects p on p.id=o.project_id
             left join kpm_project_skus ps on ps.id=o.sku_id
             where (#{year} = '' or extract(year from o.order_date)::text = #{year})
-              and (#{customerId} = '' or o.customer_id = #{customerId})
-              and (#{projectId} = '' or o.project_id = #{projectId})
+              and (#{customerId} = '' or o.customer_id::text = #{customerId})
+              and (#{projectId} = '' or o.project_id::text = #{projectId})
               and o.del_flag=0
             order by o.order_date desc, o.id desc
+            </script>
             """)
-    List<Map<String, Object>> list(@Param("year") String year, @Param("customerId") String customerId, @Param("projectId") String projectId);
+    List<OrderEntity> list(@Param("columns") String columns, @Param("year") String year, @Param("customerId") String customerId, @Param("projectId") String projectId);
+
+    default List<OrderEntity> list(String year, String customerId, String projectId) {
+        return list(ORDER_SELECT_COLUMNS, year, customerId, projectId);
+    }
 
     @Select("""
-            select o.*, c.name as customer_name, c.region, p.external_name as project_name,
-                   ps.whole_machine_part_number, ps.configuration_name, ps.memory_type
+            <script>
+            select ${columns}
             from kpm_orders o join kpm_customers c on c.id=o.customer_id join kpm_projects p on p.id=o.project_id
             left join kpm_project_skus ps on ps.id=o.sku_id
             where o.id=#{id}
               and o.del_flag=0
+            </script>
             """)
-    Map<String, Object> load(@Param("id") String id);
+    OrderEntity load(@Param("columns") String columns, @Param("id") String id);
 
-    @Select("select * from kpm_order_histories where order_id=#{orderId} and del_flag=0 order by modified_at desc")
-    List<Map<String, Object>> histories(@Param("orderId") String orderId);
+    default OrderEntity load(String id) {
+        return load(ORDER_SELECT_COLUMNS, id);
+    }
+
+    @Select("""
+            select id,
+                   order_id as orderId,
+                   modifier,
+                   modified_at as modifiedAt,
+                   changes,
+                   reason
+            from kpm_order_histories
+            where order_id=#{orderId} and del_flag=0
+            order by modified_at desc
+            """)
+    List<OrderHistoryEntity> histories(@Param("orderId") String orderId);
 
     @Insert("""
             insert into kpm_orders
             (id, order_date, customer_id, project_id, sku_id, sku_snapshot, order_type, status, quantity, specification, expected_ship_date, planned_ship_date, actual_ship_date, software_version, currency, unit_price, amount, creator_user_id, creator)
             values
-            (#{id}, cast(#{body.orderDate} as date), #{body.customerId}, #{body.projectId}, #{body.skuId}, cast(#{skuSnapshotJson} as jsonb), #{body.orderType}, #{status}, #{quantity}, #{body.specification}, cast(#{body.expectedShipDate} as date), cast(#{body.plannedShipDate} as date), cast(#{actualShipDate} as date), #{body.softwareVersion}, #{body.currency}, #{unitPrice}, #{amount}, #{creatorUserId}, #{creatorName})
+            (#{command.id}, cast(#{command.orderDate} as date), #{command.customerId}, #{command.projectId}, #{command.skuId}, cast(#{command.skuSnapshotJson} as jsonb), #{command.orderType}, #{command.status}, #{command.quantity}, #{command.specification}, cast(#{command.expectedShipDate} as date), cast(#{command.plannedShipDate} as date), cast(#{command.actualShipDate} as date), #{command.softwareVersion}, #{command.currency}, #{command.unitPrice}, #{command.amount}, #{command.creatorUserId}, #{command.creatorName})
             """)
-    void insert(@Param("body") Map<String, Object> body, @Param("id") String id, @Param("quantity") int quantity, @Param("unitPrice") BigDecimal unitPrice, @Param("amount") BigDecimal amount, @Param("creatorUserId") String creatorUserId, @Param("creatorName") String creatorName, @Param("status") String status, @Param("actualShipDate") String actualShipDate, @Param("skuSnapshotJson") String skuSnapshotJson);
+    void insert(@Param("command") OrderWriteCommand command);
 
     @Update("""
-            update kpm_orders set order_date=cast(#{body.orderDate} as date), customer_id=#{body.customerId}, project_id=#{body.projectId}, sku_id=#{body.skuId}, sku_snapshot=cast(#{skuSnapshotJson} as jsonb), order_type=#{body.orderType}, status=#{status}, quantity=#{quantity}, specification=#{body.specification}, expected_ship_date=cast(#{body.expectedShipDate} as date), planned_ship_date=cast(#{body.plannedShipDate} as date), actual_ship_date=cast(#{actualShipDate} as date), software_version=#{body.softwareVersion}, currency=#{body.currency}, unit_price=#{unitPrice}, amount=#{amount}, updated_at=current_timestamp, update_time=current_timestamp
-            where id=#{id}
+            update kpm_orders set order_date=cast(#{command.orderDate} as date), customer_id=#{command.customerId}, project_id=#{command.projectId}, sku_id=#{command.skuId}, sku_snapshot=cast(#{command.skuSnapshotJson} as jsonb), order_type=#{command.orderType}, status=#{command.status}, quantity=#{command.quantity}, specification=#{command.specification}, expected_ship_date=cast(#{command.expectedShipDate} as date), planned_ship_date=cast(#{command.plannedShipDate} as date), actual_ship_date=cast(#{command.actualShipDate} as date), software_version=#{command.softwareVersion}, currency=#{command.currency}, unit_price=#{command.unitPrice}, amount=#{command.amount}, updated_at=current_timestamp, update_time=current_timestamp
+            where id=#{command.id}
             """)
-    void updateOrder(@Param("id") String id, @Param("body") Map<String, Object> body, @Param("quantity") int quantity, @Param("unitPrice") BigDecimal unitPrice, @Param("amount") BigDecimal amount, @Param("status") String status, @Param("actualShipDate") String actualShipDate, @Param("skuSnapshotJson") String skuSnapshotJson);
+    void updateOrder(@Param("command") OrderWriteCommand command);
 
     @Update("update kpm_orders set del_flag=1, updated_at=current_timestamp, update_time=current_timestamp where id=#{id}")
     void deleteById(@Param("id") String id);
@@ -110,7 +167,7 @@ public interface OrderMapper {
     @Update("update kpm_project_customers set project_status=#{status} where project_id=#{projectId} and customer_id=#{customerId}")
     void updateProjectCustomerStatus(@Param("projectId") String projectId, @Param("customerId") String customerId, @Param("status") String status);
 
-    @Select("select count(*) + 1 from kpm_orders where id like #{prefixLike}")
+    @Select("select count(*) + 1 from kpm_orders where id::text like #{prefixLike}")
     Integer nextMonthlyOrderSequenceRow(@Param("prefixLike") String prefixLike);
 
     default int nextMonthlyOrderSequence(String prefix) {

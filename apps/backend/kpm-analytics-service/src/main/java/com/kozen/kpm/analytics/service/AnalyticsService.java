@@ -1,7 +1,12 @@
 package com.kozen.kpm.analytics.service;
 
+import com.kozen.kpm.analytics.dto.CustomerActivityDto;
+import com.kozen.kpm.analytics.dto.DashboardStatsDto;
+import com.kozen.kpm.analytics.dto.OrderStatsDto;
+import com.kozen.kpm.analytics.dto.ResourceMapDto;
+import com.kozen.kpm.analytics.dto.SupportStatsDto;
+
 import java.util.List;
-import java.util.Map;
 
 /**
  * Analytics read service.
@@ -10,13 +15,13 @@ import java.util.Map;
  */
 public interface AnalyticsService {
     /** Query dashboard overview numbers. */
-    Map<String, Object> dashboard();
+    DashboardStatsDto dashboard();
     /** Query order statistics and convert amount into target currency. */
-    List<Map<String, Object>> orderStats(String targetCurrency);
+    List<OrderStatsDto> orderStats(String targetCurrency);
     /** Query customer/resource map data. */
-    List<Map<String, Object>> resourceMap();
+    List<ResourceMapDto> resourceMap();
     /** Query technical support workload statistics. */
-    List<Map<String, Object>> support(String customerId);
+    List<SupportStatsDto> support(String customerId);
     /** Query customer activity status list. */
-    List<Map<String, Object>> activity();
+    List<CustomerActivityDto> activity();
 }

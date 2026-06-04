@@ -9,8 +9,6 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @Schema(description = "订单保存请求")
 public record OrderRequest(
@@ -66,27 +64,4 @@ public record OrderRequest(
     public String safeCurrency() { return currency; }
     public String safeOrderType() { return orderType; }
     public String safeStatus() { return status == null || status.isBlank() ? null : status; }
-
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("id", id);
-        map.put("orderDate", orderDate);
-        map.put("customerId", customerId);
-        map.put("projectId", projectId);
-        map.put("skuId", skuId);
-        map.put("orderType", safeOrderType());
-        map.put("status", safeStatus());
-        map.put("quantity", quantity);
-        map.put("specification", specification);
-        map.put("expectedShipDate", safeExpectedShipDate());
-        map.put("plannedShipDate", safePlannedShipDate());
-        map.put("softwareVersion", softwareVersion);
-        map.put("currency", safeCurrency());
-        map.put("unitPrice", unitPrice);
-        map.put("creator", creator);
-        map.put("modifier", modifier);
-        map.put("changeSummary", changeSummary);
-        map.put("changeReason", changeReason);
-        return map;
-    }
 }

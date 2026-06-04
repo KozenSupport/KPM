@@ -1,31 +1,30 @@
 package com.kozen.kpm.notification.converter;
 
 import com.kozen.kpm.notification.dto.InternalMessageDto;
+import com.kozen.kpm.notification.entity.InternalMessageEntity;
 import org.springframework.stereotype.Component;
-
-import java.util.Map;
 
 @Component
 public class NotificationConverter {
-    public InternalMessageDto toInternalMessageDto(Map<String, Object> row) {
-        boolean read = Boolean.TRUE.equals(row.get("readFlag"));
+    public InternalMessageDto toInternalMessageDto(InternalMessageEntity entity) {
+        boolean read = Boolean.TRUE.equals(entity.getReadFlag());
         return new InternalMessageDto(
-                stringValue(row.get("id")),
-                stringValue(row.get("title")),
-                stringValue(row.get("content")),
-                stringValue(row.getOrDefault("messageType", "system")),
+                value(entity.getId()),
+                value(entity.getTitle()),
+                value(entity.getContent()),
+                blankToDefault(entity.getMessageType(), "system"),
                 read,
                 read ? "READ" : "UNREAD",
-                stringValue(row.get("createdAt")),
-                nullableString(row.get("readAt"))
+                entity.getCreatedAt() == null ? "" : entity.getCreatedAt().toString(),
+                entity.getReadAt() == null ? null : entity.getReadAt().toString()
         );
     }
 
-    private String stringValue(Object value) {
-        return value == null ? "" : String.valueOf(value);
+    private String value(String value) {
+        return value == null ? "" : value;
     }
 
-    private String nullableString(Object value) {
-        return value == null ? null : String.valueOf(value);
+    private String blankToDefault(String value, String defaultValue) {
+        return value == null || value.isBlank() ? defaultValue : value;
     }
 }

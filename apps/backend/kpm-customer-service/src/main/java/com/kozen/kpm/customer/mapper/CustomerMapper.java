@@ -1,10 +1,17 @@
 package com.kozen.kpm.customer.mapper;
 
+import com.kozen.kpm.common.dto.FileMetadataRequest;
 import com.kozen.kpm.common.util.JsonUtil;
+import com.kozen.kpm.customer.dto.CustomerContactRequest;
+import com.kozen.kpm.customer.dto.CustomerWriteCommand;
 import com.kozen.kpm.customer.entity.CustomerContactEntity;
+import com.kozen.kpm.customer.entity.CustomerEntity;
+import com.kozen.kpm.customer.entity.CustomerFollowupEntity;
+import com.kozen.kpm.customer.entity.CustomerMaterialEntity;
+import com.kozen.kpm.customer.entity.CustomerProjectEntity;
+import com.kozen.kpm.customer.entity.UserLookupEntity;
 import org.apache.ibatis.annotations.Arg;
 import org.apache.ibatis.annotations.ConstructorArgs;
-import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -12,13 +19,12 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
-import java.util.Map;
 
-/** Customer data access mapper backed by MyBatis. */
+/** Customer data access mapper backed by MyBatis typed projections. */
 @Mapper
 public interface CustomerMapper {
-    @Select("select id, account, email, name from kpm_users where account=#{value} or email=#{value} or name=#{value}")
-    List<Map<String, Object>> usersByAccountOrName(@Param("value") Object value);
+    @Select("select id, account, email, name from kpm_users where (account=#{value} or email=#{value} or name=#{value}) and del_flag=0")
+    List<UserLookupEntity> usersByAccountOrName(@Param("value") String value);
 
     @Select("""
             select value from kpm_enum_items
@@ -29,40 +35,75 @@ public interface CustomerMapper {
     String defaultEnumValue(@Param("enumType") String enumType);
 
     @Select("""
-            select * from kpm_customers
+            select id,
+                   name,
+                   short_name as shortName,
+                   region,
+                   address,
+                   level,
+                   status,
+                   created_at as createdAt,
+                   update_time as updatedAt
+            from kpm_customers
             where del_flag=0
               and (#{keywordLike} = '' or name ilike #{keywordLike} or short_name ilike #{keywordLike} or region ilike #{keywordLike} or address ilike #{keywordLike})
             order by name
             """)
-    List<Map<String, Object>> list(@Param("keywordLike") String keywordLike);
+    List<CustomerEntity> list(@Param("keywordLike") String keywordLike);
 
-    @Select("select * from kpm_customers where id=#{id} and del_flag=0")
-    Map<String, Object> load(@Param("id") String id);
+    @Select("""
+            select id,
+                   name,
+                   short_name as shortName,
+                   region,
+                   address,
+                   level,
+                   status,
+                   created_at as createdAt,
+                   update_time as updatedAt
+            from kpm_customers where id=#{id} and del_flag=0
+            """)
+    CustomerEntity load(@Param("id") String id);
 
     @Select("select id from kpm_customers where id=#{id} and del_flag=0")
     List<String> idsById(@Param("id") String id);
 
+    @Select("""
+            select count(1)
+            from kpm_customers
+            where upper(short_name)=upper(#{shortName})
+              and del_flag=0
+              and (#{excludeId} = '' or id::text <> #{excludeId})
+            """)
+    int countByShortName(@Param("shortName") String shortName, @Param("excludeId") String excludeId);
+
     @Insert("""
             insert into kpm_customers (id, name, short_name, region, address, level, status)
-            values (#{id}, #{body.name}, #{body.shortName}, #{body.region}, #{body.address}, #{body.level}, #{body.status})
+            values (#{command.id}, #{command.name}, #{command.shortName}, #{command.region}, #{command.address}, #{command.level}, #{command.status})
             """)
-    void insert(@Param("id") String id, @Param("body") Map<String, Object> body);
+    void insert(@Param("command") CustomerWriteCommand command);
 
     @Update("""
             update kpm_customers
-            set name=#{body.name}, short_name=#{body.shortName}, region=#{body.region}, address=#{body.address}, level=#{body.level}, status=#{body.status}, updated_at=current_timestamp
-            where id=#{id} and del_flag=0
+            set name=#{command.name},
+                short_name=#{command.shortName},
+                region=#{command.region},
+                address=#{command.address},
+                level=#{command.level},
+                status=#{command.status},
+                update_time=current_timestamp
+            where id=#{command.id} and del_flag=0
             """)
-    void updateCustomer(@Param("id") String id, @Param("body") Map<String, Object> body);
+    void updateCustomer(@Param("command") CustomerWriteCommand command);
 
     @Update("update kpm_customers set del_flag=1, update_time=current_timestamp where id=#{id}")
     void deleteById(@Param("id") String id);
 
-    @Delete("delete from kpm_customer_owners where customer_id=#{customerId}")
+    @Update("update kpm_customer_owners set del_flag=1, update_time=current_timestamp where customer_id=#{customerId}")
     void deleteOwners(@Param("customerId") String customerId);
 
     @Insert("insert into kpm_customer_owners (id, customer_id, owner_type, owner_user_id, owner_name) values (#{id}, #{customerId}, #{ownerType}, #{ownerUserId}, #{ownerName})")
-    void insertOwner(@Param("id") String id, @Param("customerId") String customerId, @Param("ownerType") String ownerType, @Param("ownerUserId") String ownerUserId, @Param("ownerName") Object ownerName);
+    void insertOwner(@Param("id") String id, @Param("customerId") String customerId, @Param("ownerType") String ownerType, @Param("ownerUserId") String ownerUserId, @Param("ownerName") String ownerName);
 
     @Select("""
             select coalesce(u.name, co.owner_name)
@@ -90,36 +131,63 @@ public interface CustomerMapper {
             """)
     List<CustomerContactEntity> contacts(@Param("customerId") String customerId);
 
-    @Insert("insert into kpm_customer_contacts (id, customer_id, name, title, phone, email, remark) values (#{id}, #{customerId}, #{body.name}, #{body.title}, #{body.phone}, #{body.email}, #{body.remark})")
-    void insertContact(@Param("id") String id, @Param("customerId") String customerId, @Param("body") Map<String, Object> body);
+    @Insert("insert into kpm_customer_contacts (id, customer_id, name, title, phone, email, remark) values (#{id}, #{customerId}, #{request.name}, #{request.title}, #{request.phone}, #{request.email}, #{request.remark})")
+    void insertContact(@Param("id") String id, @Param("customerId") String customerId, @Param("request") CustomerContactRequest request);
 
     @Update("update kpm_customer_contacts set del_flag=1, update_time=current_timestamp where customer_id=#{customerId} and id=#{contactId}")
     void deleteContact(@Param("customerId") String customerId, @Param("contactId") String contactId);
 
-    @Select("select * from kpm_customer_materials where customer_id=#{customerId} and del_flag=0 order by uploaded_at desc")
-    List<Map<String, Object>> materials(@Param("customerId") String customerId);
+    @Select("""
+            select id,
+                   customer_id as customerId,
+                   file_name as fileName,
+                   file_type as fileType,
+                   file_size as fileSize,
+                   uploader,
+                   bucket,
+                   object_key as objectKey,
+                   storage_url as storageUrl,
+                   storage_category as storageCategory,
+                   uploaded_at as uploadedAt
+            from kpm_customer_materials where customer_id=#{customerId} and del_flag=0 order by uploaded_at desc
+            """)
+    List<CustomerMaterialEntity> materials(@Param("customerId") String customerId);
 
     @Insert("""
             insert into kpm_customer_materials
             (id, customer_id, file_name, file_type, file_size, uploader, bucket, object_key, storage_url, storage_category)
-            values (#{id}, #{customerId}, #{body.fileName}, #{body.fileType}, #{body.fileSize}, #{body.uploader}, #{body.bucket}, #{body.objectKey}, #{body.storageUrl}, #{body.category})
+            values (#{id}, #{customerId}, #{request.fileName}, #{request.fileType}, #{request.fileSize}, #{request.uploader}, #{request.bucket}, #{request.objectKey}, #{request.storageUrl}, coalesce(#{request.storageCategory}, #{request.category}))
             """)
-    void insertMaterial(@Param("id") String id, @Param("customerId") String customerId, @Param("body") Map<String, Object> body);
+    void insertMaterial(@Param("id") String id, @Param("customerId") String customerId, @Param("request") FileMetadataRequest request);
 
-    @Select("select * from kpm_customer_followups where customer_id=#{customerId} and del_flag=0 order by created_at desc")
-    List<Map<String, Object>> followups(@Param("customerId") String customerId);
+    @Select("""
+            select id,
+                   customer_id as customerId,
+                   author,
+                   content,
+                   cast(attachments as text) as attachments,
+                   created_at as createdAt
+            from kpm_customer_followups where customer_id=#{customerId} and del_flag=0 order by created_at desc
+            """)
+    List<CustomerFollowupEntity> followups(@Param("customerId") String customerId);
 
-    default void insertFollowup(String id, String customerId, Object author, Object content, Object attachments) {
+    default void insertFollowup(String id, String customerId, String author, String content, List<Object> attachments) {
         insertFollowupRow(id, customerId, author, content, JsonUtil.toJson(attachments == null ? List.of() : attachments));
     }
 
     @Insert("insert into kpm_customer_followups (id, customer_id, author, content, attachments) values (#{id}, #{customerId}, #{author}, #{content}, cast(#{attachmentsJson} as jsonb))")
-    void insertFollowupRow(@Param("id") String id, @Param("customerId") String customerId, @Param("author") Object author, @Param("content") Object content, @Param("attachmentsJson") String attachmentsJson);
+    void insertFollowupRow(@Param("id") String id, @Param("customerId") String customerId, @Param("author") String author, @Param("content") String content, @Param("attachmentsJson") String attachmentsJson);
 
     @Select("""
-            select pc.id, pc.project_status, p.id as project_id, p.external_name, p.internal_name, p.model_name, p.salesability
+            select pc.id,
+                   pc.project_status as projectStatus,
+                   p.id as projectId,
+                   p.external_name as externalName,
+                   p.internal_name as internalName,
+                   p.model_name as modelName,
+                   p.salesability
             from kpm_project_customers pc join kpm_projects p on p.id = pc.project_id
             where pc.customer_id=#{customerId} and pc.del_flag=0 and p.del_flag=0 order by p.external_name
             """)
-    List<Map<String, Object>> projects(@Param("customerId") String customerId);
+    List<CustomerProjectEntity> projects(@Param("customerId") String customerId);
 }

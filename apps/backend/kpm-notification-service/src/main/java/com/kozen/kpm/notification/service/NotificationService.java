@@ -1,12 +1,13 @@
 package com.kozen.kpm.notification.service;
 
 import com.kozen.kpm.notification.dto.InternalMessageDto;
+import com.kozen.kpm.notification.dto.NotificationSettingsDto;
 
 import java.util.List;
-import java.util.Map;
 
 public interface NotificationService {
     void processPendingEvents();
+
     /**
      * Query internal messages for the current account.
      *
@@ -15,11 +16,15 @@ public interface NotificationService {
      * @return internal messages with explicit read status for frontend rendering
      */
     List<InternalMessageDto> messages(String account, boolean unreadOnly);
+
     int unreadCount(String account);
+
     /** Mark one internal message as read for the current account. */
     boolean markRead(String account, String messageId);
 
     /** Mark all unread internal messages as read for the current account. */
     int markAllRead(String account);
-    Map<String, Object> settings();
+
+    /** Query frontend notification polling settings. */
+    NotificationSettingsDto settings();
 }

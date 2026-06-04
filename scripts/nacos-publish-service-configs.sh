@@ -8,7 +8,7 @@ mkdir -p "$LOCAL_NACOS_CONFIG_DIR"
 NACOS_ADDR="${KPM_NACOS_ADDR:-127.0.0.1:8848}"
 NAMESPACE="${KPM_NACOS_NAMESPACE:-public}"
 GROUP="${KPM_NACOS_CONFIG_GROUP:-DEFAULT_GROUP}"
-DB_HOST="${KPM_DB_HOST:-host.docker.internal}"
+DB_HOST="${KPM_DB_HOST:-kpm-postgres}"
 DB_PORT="${KPM_DB_PORT:-5432}"
 DB_NAME="${KPM_DB_NAME:-kpm}"
 DB_USER="${KPM_DB_USER:-kpm}"
@@ -144,9 +144,12 @@ server:
   port: ${port}
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?stringtype=unspecified
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${KPM_DB_POOL_MAX_SIZE:-5}
+      minimum-idle: ${KPM_DB_POOL_MIN_IDLE:-1}
 kpm:
   service:
     code: ${code}
@@ -161,16 +164,21 @@ publish kpm-project-service.yaml "$(base_config 8103 project)"
 publish kpm-customer-service.yaml "$(base_config 8104 customer)"
 publish kpm-task-service.yaml "$(base_config 8105 task)"
 publish kpm-order-service.yaml "$(base_config 8106 order)"
-publish kpm-integration-service.yaml "$(base_config 8109 integration)"
+publish kpm-integration-service.yaml "$(cat <<YAML
+server:
+  port: 8109
+kpm:
+  service:
+    code: integration
+  auth:
+    token-secret: ${AUTH_SECRET}
+YAML
+)"
 
 publish kpm-file-service.yaml "$(cat <<YAML
 server:
   port: 8107
 spring:
-  datasource:
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
   servlet:
     multipart:
       max-file-size: ${KPM_UPLOAD_MAX_FILE_SIZE:-200MB}
@@ -189,9 +197,12 @@ server:
   port: 8108
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?stringtype=unspecified
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${KPM_DB_POOL_MAX_SIZE:-5}
+      minimum-idle: ${KPM_DB_POOL_MIN_IDLE:-1}
 kpm:
   service:
     code: analytics
@@ -233,7 +244,7 @@ spring:
                 allowCredentials: false
 kpm:
   iam:
-    uri: ${KPM_IAM_URI:-http://host.docker.internal:8101}
+    uri: ${KPM_IAM_URI:-http://kpm-iam-service-dev:8101}
   auth:
     enabled: ${KPM_AUTH_ENABLED:-true}
     rbac-enabled: ${KPM_RBAC_ENABLED:-true}
@@ -246,9 +257,12 @@ server:
   port: 8110
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?stringtype=unspecified
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${KPM_DB_POOL_MAX_SIZE:-5}
+      minimum-idle: ${KPM_DB_POOL_MIN_IDLE:-1}
   mail:
     host: ${KPM_MAIL_HOST:-}
     port: ${KPM_MAIL_PORT:-587}
@@ -260,6 +274,10 @@ spring:
           auth: ${KPM_MAIL_SMTP_AUTH:-true}
           starttls:
             enable: ${KPM_MAIL_STARTTLS_ENABLE:-true}
+management:
+  health:
+    mail:
+      enabled: ${KPM_NOTIFICATION_MAIL_HEALTH_ENABLED:-${KPM_NOTIFICATION_MAIL_ENABLED:-false}}
 kpm:
   service:
     code: notification

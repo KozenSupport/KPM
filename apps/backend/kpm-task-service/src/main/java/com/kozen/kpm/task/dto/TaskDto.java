@@ -9,6 +9,7 @@ import java.util.List;
 @Schema(description = "任务详情/列表项")
 public record TaskDto(
         String id,
+        String taskNo,
         String title,
         String description,
         String projectId,

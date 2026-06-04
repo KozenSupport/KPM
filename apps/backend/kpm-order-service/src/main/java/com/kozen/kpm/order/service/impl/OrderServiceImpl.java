@@ -4,7 +4,14 @@ import com.kozen.kpm.common.util.IdUtil;
 import com.kozen.kpm.common.util.JsonUtil;
 import com.kozen.kpm.common.util.SqlParamUtil;
 import com.kozen.kpm.common.util.ValidationUtil;
+import com.kozen.kpm.order.converter.OrderConverter;
+import com.kozen.kpm.order.dto.OrderDto;
 import com.kozen.kpm.order.dto.OrderRequest;
+import com.kozen.kpm.order.dto.OrderSkuSnapshotDto;
+import com.kozen.kpm.order.dto.OrderWriteCommand;
+import com.kozen.kpm.order.entity.OrderEntity;
+import com.kozen.kpm.order.entity.ProjectSkuEntity;
+import com.kozen.kpm.order.entity.UserLookupEntity;
 import com.kozen.kpm.order.mapper.OrderMapper;
 import com.kozen.kpm.order.service.OrderService;
 import org.springframework.stereotype.Service;
@@ -12,81 +19,73 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
-/**
- * Default order service implementation.
- */
+/** Default order service implementation. */
 @Service
 public class OrderServiceImpl implements OrderService {
     private final OrderMapper orderMapper;
+    private final OrderConverter orderConverter;
 
-    public OrderServiceImpl(OrderMapper orderMapper) {
+    public OrderServiceImpl(OrderMapper orderMapper, OrderConverter orderConverter) {
         this.orderMapper = orderMapper;
+        this.orderConverter = orderConverter;
     }
 
     @Override
-    public List<Map<String, Object>> list(String year, String customerId, String projectId) {
+    public List<OrderDto> list(String year, String customerId, String projectId) {
         String y = SqlParamUtil.blankIfAll(year);
         String c = SqlParamUtil.blankIfAll(customerId);
         String p = SqlParamUtil.blankIfAll(projectId);
-        List<Map<String, Object>> rows = orderMapper.list(y, c, p);
-        rows.forEach(this::enrichOrder);
-        return rows;
+        return orderMapper.list(y, c, p).stream()
+                .map(this::toDtoWithHistories)
+                .toList();
     }
 
     @Override
-    public Map<String, Object> detail(String id) {
-        Map<String, Object> order = orderMapper.load(id);
+    public OrderDto detail(String id) {
+        OrderEntity order = orderMapper.load(id);
         if (order == null) {
             throw new IllegalArgumentException("订单不存在");
         }
-        enrichOrder(order);
-        return order;
+        return toDtoWithHistories(order);
     }
 
     @Override
     @Transactional
-    public Map<String, Object> create(OrderRequest request) {
-        Map<String, Object> body = request.toMap();
-        String id = request.id() == null || request.id().isBlank() ? nextOrderId() : request.id();
-        BigDecimal unitPrice = request.unitPrice();
-        int quantity = request.quantity();
-        BigDecimal amount = unitPrice.multiply(BigDecimal.valueOf(quantity));
-        Map<String, Object> creator = requireUser(request.creator(), "订单创建人");
+    public OrderDto create(OrderRequest request) {
+        String orderId = request.id() == null || request.id().isBlank() ? nextOrderId() : request.id();
+        UserLookupEntity creator = requireUser(request.creator(), "订单创建人");
+        OrderSkuSnapshotDto skuSnapshot = skuSnapshot(request.projectId(), request.skuId());
         String status = resolveOrderStatus(request.safeStatus());
-        Map<String, Object> skuSnapshot = skuSnapshot(request.projectId(), request.skuId());
         String actualShipDate = shouldMarkShipped(null, status) ? LocalDate.now().toString() : null;
-        orderMapper.insert(body, id, quantity, unitPrice, amount, String.valueOf(creator.get("id")), String.valueOf(creator.get("name")), status, actualShipDate, JsonUtil.toJson(skuSnapshot));
+        OrderWriteCommand command = toWriteCommand(orderId, request, creator, status, actualShipDate, skuSnapshot);
+
+        orderMapper.insert(command);
         ensureProjectCustomer(request.projectId(), request.customerId(), request.safeOrderType());
-        publishOrderCreatedEvent(id, request);
-        return detail(id);
+        publishOrderCreatedEvent(orderId, request);
+        return detail(orderId);
     }
 
     @Override
     @Transactional
-    public Map<String, Object> update(String id, OrderRequest request) {
-        Map<String, Object> body = request.toMap();
-        Map<String, Object> before = detail(id);
-        BigDecimal unitPrice = request.unitPrice();
-        int quantity = request.quantity();
-        BigDecimal amount = unitPrice.multiply(BigDecimal.valueOf(quantity));
+    public OrderDto update(String id, OrderRequest request) {
+        OrderDto before = detail(id);
+        OrderSkuSnapshotDto skuSnapshot = skuSnapshot(request.projectId(), request.skuId());
         String status = resolveOrderStatus(request.safeStatus());
-        Map<String, Object> skuSnapshot = skuSnapshot(request.projectId(), request.skuId());
-        String previousActualShipDate = stringValue(before.get("actualShipDate"));
-        String actualShipDate = shouldMarkShipped(before.get("status"), status) && previousActualShipDate == null
+        String previousActualShipDate = stringValue(before.actualShipDate());
+        String actualShipDate = shouldMarkShipped(before.status(), status) && previousActualShipDate == null
                 ? LocalDate.now().toString()
                 : previousActualShipDate;
-        orderMapper.updateOrder(id, body, quantity, unitPrice, amount, status, actualShipDate, JsonUtil.toJson(skuSnapshot));
-        Map<String, Object> after = new LinkedHashMap<>(body);
-        after.put("status", status);
-        after.put("actualShipDate", actualShipDate);
-        after.put("amount", amount);
-        after.put("unitPrice", unitPrice);
-        after.put("skuSnapshot", skuSnapshot);
-        String changes = request.changeSummary() == null || request.changeSummary().isBlank() ? summarize(before, after) : request.changeSummary();
+        UserLookupEntity creator = new UserLookupEntity();
+        creator.setId(before.creatorUserId());
+        creator.setName(before.creator());
+        OrderWriteCommand command = toWriteCommand(id, request, creator, status, actualShipDate, skuSnapshot);
+
+        orderMapper.updateOrder(command);
+        String changes = request.changeSummary() == null || request.changeSummary().isBlank()
+                ? summarize(before, command)
+                : request.changeSummary();
         String reason = ValidationUtil.requireText(request.changeReason(), "修改原因", 500);
         String modifier = ValidationUtil.requireText(request.modifier(), "修改人", 60);
         orderMapper.insertHistory(IdUtil.nanoId("oh"), id, modifier, changes, reason);
@@ -100,11 +99,49 @@ public class OrderServiceImpl implements OrderService {
         return true;
     }
 
-    private Map<String, Object> requireUser(Object accountOrName, String label) {
+    private OrderDto toDtoWithHistories(OrderEntity order) {
+        return orderConverter.toOrderDto(order, orderMapper.histories(order.getId()));
+    }
+
+    private OrderWriteCommand toWriteCommand(
+            String id,
+            OrderRequest request,
+            UserLookupEntity creator,
+            String status,
+            String actualShipDate,
+            OrderSkuSnapshotDto skuSnapshot
+    ) {
+        int quantity = request.quantity();
+        BigDecimal unitPrice = request.unitPrice();
+        BigDecimal amount = unitPrice.multiply(BigDecimal.valueOf(quantity));
+        return new OrderWriteCommand(
+                id,
+                request.orderDate(),
+                request.customerId(),
+                request.projectId(),
+                request.skuId(),
+                JsonUtil.toJson(skuSnapshot),
+                request.safeOrderType(),
+                status,
+                quantity,
+                request.specification(),
+                request.safeExpectedShipDate(),
+                request.safePlannedShipDate(),
+                actualShipDate,
+                request.softwareVersion(),
+                request.safeCurrency(),
+                unitPrice,
+                amount,
+                creator.getId(),
+                creator.getName()
+        );
+    }
+
+    private UserLookupEntity requireUser(Object accountOrName, String label) {
         if (accountOrName == null || String.valueOf(accountOrName).isBlank()) {
             throw new IllegalArgumentException(label + "必须从已有用户中选择");
         }
-        List<Map<String, Object>> users = orderMapper.usersByAccountOrName(accountOrName);
+        List<UserLookupEntity> users = orderMapper.usersByAccountOrName(accountOrName);
         if (users.isEmpty()) {
             throw new IllegalArgumentException(label + "不存在，请从已有用户中选择");
         }
@@ -126,10 +163,6 @@ public class OrderServiceImpl implements OrderService {
         );
     }
 
-    private void enrichOrder(Map<String, Object> order) {
-        order.put("histories", orderMapper.histories(String.valueOf(order.get("id"))));
-    }
-
     private String resolveOrderStatus(String requestedStatus) {
         if (requestedStatus != null && !requestedStatus.isBlank()) {
             return requestedStatus;
@@ -141,17 +174,12 @@ public class OrderServiceImpl implements OrderService {
         return status;
     }
 
-    private Map<String, Object> skuSnapshot(String projectId, String skuId) {
-        Map<String, Object> sku = orderMapper.activeProjectSku(projectId, skuId);
+    private OrderSkuSnapshotDto skuSnapshot(String projectId, String skuId) {
+        ProjectSkuEntity sku = orderMapper.activeProjectSku(projectId, skuId);
         if (sku == null) {
             throw new IllegalArgumentException("SKU不存在、未启用或不属于当前项目");
         }
-        Map<String, Object> snapshot = new LinkedHashMap<>();
-        snapshot.put("id", sku.get("id"));
-        snapshot.put("wholeMachinePartNumber", sku.get("wholeMachinePartNumber"));
-        snapshot.put("configurationName", sku.get("configurationName"));
-        snapshot.put("memoryType", sku.get("memoryType"));
-        return snapshot;
+        return orderConverter.toSkuSnapshotDto(sku);
     }
 
     private boolean shouldMarkShipped(Object previousStatus, String nextStatus) {
@@ -177,19 +205,49 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private String summarize(Map<String, Object> before, Map<String, Object> after) {
+    private String summarize(OrderDto before, OrderWriteCommand after) {
         List<String> fields = List.of("status", "quantity", "amount", "expectedShipDate", "plannedShipDate", "actualShipDate", "softwareVersion", "skuId", "specification");
         List<String> changes = fields.stream()
-                .map(field -> {
-                    String oldValue = stringValue(before.get(field));
-                    String newValue = stringValue(after.get(field));
-                    if (oldValue == null && newValue == null) return null;
-                    if (oldValue != null && oldValue.equals(newValue)) return null;
-                    return fieldLabel(field) + "：" + (oldValue == null ? "-" : oldValue) + " → " + (newValue == null ? "-" : newValue);
-                })
+                .map(field -> summarizeField(field, oldValue(before, field), newValue(after, field)))
                 .filter(value -> value != null && !value.isBlank())
                 .toList();
         return changes.isEmpty() ? "订单信息已更新" : String.join("；", changes);
+    }
+
+    private String summarizeField(String field, String oldValue, String newValue) {
+        if (oldValue == null && newValue == null) return null;
+        if (oldValue != null && oldValue.equals(newValue)) return null;
+        return fieldLabel(field) + "：" + (oldValue == null ? "-" : oldValue) + " → " + (newValue == null ? "-" : newValue);
+    }
+
+    private String oldValue(OrderDto order, String field) {
+        return switch (field) {
+            case "status" -> stringValue(order.status());
+            case "quantity" -> stringValue(order.quantity());
+            case "amount" -> stringValue(order.amount());
+            case "expectedShipDate" -> stringValue(order.expectedShipDate());
+            case "plannedShipDate" -> stringValue(order.plannedShipDate());
+            case "actualShipDate" -> stringValue(order.actualShipDate());
+            case "softwareVersion" -> stringValue(order.softwareVersion());
+            case "skuId" -> stringValue(order.skuId());
+            case "specification" -> stringValue(order.specification());
+            default -> null;
+        };
+    }
+
+    private String newValue(OrderWriteCommand order, String field) {
+        return switch (field) {
+            case "status" -> stringValue(order.getStatus());
+            case "quantity" -> stringValue(order.getQuantity());
+            case "amount" -> stringValue(order.getAmount());
+            case "expectedShipDate" -> stringValue(order.getExpectedShipDate());
+            case "plannedShipDate" -> stringValue(order.getPlannedShipDate());
+            case "actualShipDate" -> stringValue(order.getActualShipDate());
+            case "softwareVersion" -> stringValue(order.getSoftwareVersion());
+            case "skuId" -> stringValue(order.getSkuId());
+            case "specification" -> stringValue(order.getSpecification());
+            default -> null;
+        };
     }
 
     private String fieldLabel(String field) {
@@ -215,8 +273,6 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private String nextOrderId() {
-        String ym = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMM"));
-        String prefix = "ORD-" + ym + "-";
-        return prefix + String.format("%03d", orderMapper.nextMonthlyOrderSequence(prefix));
+        return IdUtil.numericId();
     }
 }

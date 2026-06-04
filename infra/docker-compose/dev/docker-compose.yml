@@ -13,6 +13,7 @@ x-backend-env: &backend-env
     KPM_AUTH_ENABLED: ${KPM_AUTH_ENABLED:-true}
     KPM_RBAC_ENABLED: ${KPM_RBAC_ENABLED:-true}
     KPM_AUTH_TOKEN_SECRET: ${KPM_AUTH_TOKEN_SECRET:-kpm-local-dev-secret-change-me}
+    JAVA_TOOL_OPTIONS: ${KPM_JAVA_TOOL_OPTIONS:--Xms32m -Xmx192m -XX:+UseG1GC}
   volumes:
     - ../../../apps/backend:/workspace
     - ../../../.m2:/root/.m2
@@ -69,9 +70,10 @@ services:
       NACOS_AUTH_TOKEN: "S1BNLURldi1Mb2NhbC1OYWNvcy1BdXRoLVRva2VuLTEyMzQ1Njc4OTA="
       NACOS_AUTH_IDENTITY_KEY: "kpm-dev"
       NACOS_AUTH_IDENTITY_VALUE: "kpm-dev-local"
-      JVM_XMS: ${KPM_NACOS_JVM_XMS:-128m}
-      JVM_XMX: ${KPM_NACOS_JVM_XMX:-512m}
-      JVM_XMN: ${KPM_NACOS_JVM_XMN:-64m}
+      JVM_XMS: ${KPM_NACOS_JVM_XMS:-64m}
+      JVM_XMX: ${KPM_NACOS_JVM_XMX:-192m}
+      JVM_XMN: ${KPM_NACOS_JVM_XMN:-32m}
+      JAVA_OPT_EXT: ${KPM_NACOS_JAVA_OPT_EXT:--Xms64m -Xmx192m -Xmn32m -XX:+UseSerialGC}
     ports:
       - "${KPM_NACOS_PORT:-8848}:8848"
       - "${KPM_NACOS_CONSOLE_PORT:-8849}:8080"
@@ -127,42 +129,42 @@ services:
     container_name: kpm-iam-service
     ports:
       - "${KPM_IAM_PORT:-8101}:8101"
-    command: java -jar kpm-iam-service/target/kpm-iam-service-0.1.0-SNAPSHOT.jar
+    command: sh -lc "cp kpm-iam-service/target/kpm-iam-service-0.1.0-SNAPSHOT.jar /tmp/kpm-iam-service.jar && exec /opt/java/openjdk/bin/java -jar /tmp/kpm-iam-service.jar"
 
   resource-service:
     <<: *backend-env
     container_name: kpm-resource-service
     ports:
       - "${KPM_RESOURCE_PORT:-8102}:8102"
-    command: java -jar kpm-resource-service/target/kpm-resource-service-0.1.0-SNAPSHOT.jar
+    command: sh -lc "cp kpm-resource-service/target/kpm-resource-service-0.1.0-SNAPSHOT.jar /tmp/kpm-resource-service.jar && exec /opt/java/openjdk/bin/java -jar /tmp/kpm-resource-service.jar"
 
   project-service:
     <<: *backend-env
     container_name: kpm-project-service
     ports:
       - "${KPM_PROJECT_PORT:-8103}:8103"
-    command: java -jar kpm-project-service/target/kpm-project-service-0.1.0-SNAPSHOT.jar
+    command: sh -lc "cp kpm-project-service/target/kpm-project-service-0.1.0-SNAPSHOT.jar /tmp/kpm-project-service.jar && exec /opt/java/openjdk/bin/java -jar /tmp/kpm-project-service.jar"
 
   customer-service:
     <<: *backend-env
     container_name: kpm-customer-service
     ports:
       - "${KPM_CUSTOMER_PORT:-8104}:8104"
-    command: java -jar kpm-customer-service/target/kpm-customer-service-0.1.0-SNAPSHOT.jar
+    command: sh -lc "cp kpm-customer-service/target/kpm-customer-service-0.1.0-SNAPSHOT.jar /tmp/kpm-customer-service.jar && exec /opt/java/openjdk/bin/java -jar /tmp/kpm-customer-service.jar"
 
   task-service:
     <<: *backend-env
     container_name: kpm-task-service
     ports:
       - "${KPM_TASK_PORT:-8105}:8105"
-    command: java -jar kpm-task-service/target/kpm-task-service-0.1.0-SNAPSHOT.jar
+    command: sh -lc "cp kpm-task-service/target/kpm-task-service-0.1.0-SNAPSHOT.jar /tmp/kpm-task-service.jar && exec /opt/java/openjdk/bin/java -jar /tmp/kpm-task-service.jar"
 
   order-service:
     <<: *backend-env
     container_name: kpm-order-service
     ports:
       - "${KPM_ORDER_PORT:-8106}:8106"
-    command: java -jar kpm-order-service/target/kpm-order-service-0.1.0-SNAPSHOT.jar
+    command: sh -lc "cp kpm-order-service/target/kpm-order-service-0.1.0-SNAPSHOT.jar /tmp/kpm-order-service.jar && exec /opt/java/openjdk/bin/java -jar /tmp/kpm-order-service.jar"
 
   file-service:
     <<: *backend-env
@@ -183,23 +185,24 @@ services:
       KPM_AUTH_ENABLED: ${KPM_AUTH_ENABLED:-true}
       KPM_RBAC_ENABLED: ${KPM_RBAC_ENABLED:-true}
       KPM_AUTH_TOKEN_SECRET: ${KPM_AUTH_TOKEN_SECRET:-kpm-local-dev-secret-change-me}
+      JAVA_TOOL_OPTIONS: ${KPM_JAVA_TOOL_OPTIONS:--Xms32m -Xmx192m -XX:+UseG1GC}
       KPM_UPLOAD_MAX_FILE_SIZE: ${KPM_UPLOAD_MAX_FILE_SIZE:-200MB}
       KPM_UPLOAD_MAX_REQUEST_SIZE: ${KPM_UPLOAD_MAX_REQUEST_SIZE:-500MB}
-    command: java -jar kpm-file-service/target/kpm-file-service-0.1.0-SNAPSHOT.jar
+    command: sh -lc "cp kpm-file-service/target/kpm-file-service-0.1.0-SNAPSHOT.jar /tmp/kpm-file-service.jar && exec /opt/java/openjdk/bin/java -jar /tmp/kpm-file-service.jar"
 
   analytics-service:
     <<: *backend-env
     container_name: kpm-analytics-service
     ports:
       - "${KPM_ANALYTICS_PORT:-8108}:8108"
-    command: java -jar kpm-analytics-service/target/kpm-analytics-service-0.1.0-SNAPSHOT.jar
+    command: sh -lc "cp kpm-analytics-service/target/kpm-analytics-service-0.1.0-SNAPSHOT.jar /tmp/kpm-analytics-service.jar && exec /opt/java/openjdk/bin/java -jar /tmp/kpm-analytics-service.jar"
 
   integration-service:
     <<: *backend-env
     container_name: kpm-integration-service
     ports:
       - "${KPM_INTEGRATION_PORT:-8109}:8109"
-    command: java -jar kpm-integration-service/target/kpm-integration-service-0.1.0-SNAPSHOT.jar
+    command: sh -lc "cp kpm-integration-service/target/kpm-integration-service-0.1.0-SNAPSHOT.jar /tmp/kpm-integration-service.jar && exec /opt/java/openjdk/bin/java -jar /tmp/kpm-integration-service.jar"
 
   notification-service:
     <<: *backend-env
@@ -220,6 +223,7 @@ services:
       KPM_AUTH_ENABLED: ${KPM_AUTH_ENABLED:-true}
       KPM_RBAC_ENABLED: ${KPM_RBAC_ENABLED:-true}
       KPM_AUTH_TOKEN_SECRET: ${KPM_AUTH_TOKEN_SECRET:-kpm-local-dev-secret-change-me}
+      JAVA_TOOL_OPTIONS: ${KPM_JAVA_TOOL_OPTIONS:--Xms32m -Xmx192m -XX:+UseG1GC}
       KPM_NOTIFICATION_REFRESH_INTERVAL_SECONDS: ${KPM_NOTIFICATION_REFRESH_INTERVAL_SECONDS:-120}
       KPM_NOTIFICATION_PROCESSOR_INTERVAL_MS: ${KPM_NOTIFICATION_PROCESSOR_INTERVAL_MS:-15000}
       KPM_NOTIFICATION_MAIL_ENABLED: ${KPM_NOTIFICATION_MAIL_ENABLED:-false}
@@ -230,7 +234,7 @@ services:
       KPM_MAIL_PASSWORD: ${KPM_MAIL_PASSWORD:-}
       KPM_MAIL_SMTP_AUTH: ${KPM_MAIL_SMTP_AUTH:-true}
       KPM_MAIL_STARTTLS_ENABLE: ${KPM_MAIL_STARTTLS_ENABLE:-true}
-    command: java -jar kpm-notification-service/target/kpm-notification-service-0.1.0-SNAPSHOT.jar
+    command: sh -lc "cp kpm-notification-service/target/kpm-notification-service-0.1.0-SNAPSHOT.jar /tmp/kpm-notification-service.jar && exec /opt/java/openjdk/bin/java -jar /tmp/kpm-notification-service.jar"
 
   gateway:
     <<: *backend-env
@@ -247,7 +251,8 @@ services:
       KPM_AUTH_ENABLED: ${KPM_AUTH_ENABLED:-true}
       KPM_RBAC_ENABLED: ${KPM_RBAC_ENABLED:-true}
       KPM_AUTH_TOKEN_SECRET: ${KPM_AUTH_TOKEN_SECRET:-kpm-local-dev-secret-change-me}
-    command: java -jar kpm-gateway/target/kpm-gateway-0.1.0-SNAPSHOT.jar
+      JAVA_TOOL_OPTIONS: ${KPM_JAVA_TOOL_OPTIONS:--Xms32m -Xmx192m -XX:+UseG1GC}
+    command: sh -lc "cp kpm-gateway/target/kpm-gateway-0.1.0-SNAPSHOT.jar /tmp/kpm-gateway.jar && exec /opt/java/openjdk/bin/java -jar /tmp/kpm-gateway.jar"
 
   frontend:
     image: node:24-alpine
@@ -257,6 +262,7 @@ services:
     working_dir: /workspace
     volumes:
       - ../../../apps/frontend/kpm-web:/workspace
+      - kpm-frontend-node-modules:/workspace/node_modules
     ports:
       - "${KPM_FRONTEND_PORT:-4173}:4173"
     command: sh -lc "npm install && npm run build && npm run preview -- --host 0.0.0.0 --port 4173"
@@ -288,3 +294,4 @@ services:
 volumes:
   kpm-postgres-data:
   kpm-valkey-data:
+  kpm-frontend-node-modules:

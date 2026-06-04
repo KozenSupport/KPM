@@ -5,8 +5,13 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import com.kozen.kpm.analytics.entity.CustomerActivityRow;
+import com.kozen.kpm.analytics.entity.GeocodeCacheEntity;
+import com.kozen.kpm.analytics.entity.OrderStatsRow;
+import com.kozen.kpm.analytics.entity.ResourceMapRow;
+import com.kozen.kpm.analytics.entity.SupportStatsRow;
+
 import java.util.List;
-import java.util.Map;
 
 /** Analytics query mapper backed by MyBatis. */
 @Mapper
@@ -46,7 +51,7 @@ public interface AnalyticsMapper {
             group by period, p.external_name, c.name, c.region, o.currency
             order by period, p.external_name
             """)
-    List<Map<String, Object>> orderStats();
+    List<OrderStatsRow> orderStats();
 
     @Select("""
             select c.id as customer_id, c.name as customer_name, c.region, c.address, c.level, c.status,
@@ -68,10 +73,10 @@ public interface AnalyticsMapper {
             from kpm_customers c
             order by c.region, c.name
             """)
-    List<Map<String, Object>> resourceMap();
+    List<ResourceMapRow> resourceMap();
 
     @Select("select * from kpm_geocode_cache where query=#{query}")
-    List<Map<String, Object>> geocodeCache(@Param("query") String query);
+    List<GeocodeCacheEntity> geocodeCache(@Param("query") String query);
 
     @Insert("""
             insert into kpm_geocode_cache (query, latitude, longitude, display_name, provider, precision, updated_at)
@@ -100,11 +105,11 @@ public interface AnalyticsMapper {
                 where ta.task_id=t.id and (ta.user_id = co.owner_user_id or (ta.user_id is null and ta.assignee_name = coalesce(u.name, co.owner_name)))
             )
             left join kpm_enum_items ts on ts.enum_type='task_status' and ts.value=t.status
-            where (#{customerId} = '' or c.id = #{customerId})
+            where (#{customerId} = '' or c.id::text = #{customerId})
             group by c.id, c.name, coalesce(u.name, co.owner_name)
             order by c.name, coalesce(u.name, co.owner_name)
             """)
-    List<Map<String, Object>> support(@Param("customerId") String customerId);
+    List<SupportStatsRow> support(@Param("customerId") String customerId);
 
     @Select("""
             select c.id, c.name, c.region, c.level, c.status,
@@ -121,5 +126,5 @@ public interface AnalyticsMapper {
             group by c.id, c.name, c.region, c.level, c.status
             order by c.name
             """)
-    List<Map<String, Object>> activity();
+    List<CustomerActivityRow> activity();
 }

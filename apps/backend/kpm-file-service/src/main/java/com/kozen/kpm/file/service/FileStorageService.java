@@ -2,10 +2,10 @@ package com.kozen.kpm.file.service;
 
 import com.kozen.kpm.file.model.DownloadUrlResult;
 import com.kozen.kpm.file.model.FileUploadResult;
+import com.kozen.kpm.file.model.OssStatusResult;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.Map;
 
 /**
  * Handles physical file storage. Business services only keep file metadata and
@@ -20,5 +20,5 @@ public interface FileStorageService {
     DownloadUrlResult createDownloadUrl(String objectKey, String fileName);
 
     /** Return a safe status view without exposing access secrets. */
-    Map<String, Object> status();
+    OssStatusResult status();
 }

@@ -43,6 +43,7 @@ public interface TaskMapper {
 
     @Select("""
             select t.id,
+                   t.task_no as taskNo,
                    t.title,
                    t.description,
                    t.project_id as projectId,
@@ -76,6 +77,7 @@ public interface TaskMapper {
 
     @Select("""
             select t.id,
+                   t.task_no as taskNo,
                    t.title,
                    t.description,
                    t.project_id as projectId,
@@ -105,9 +107,9 @@ public interface TaskMapper {
 
     @Insert("""
             insert into kpm_tasks
-            (id, title, description, project_id, stage_id, category, status, priority, creator_user_id, creator, expected_completion_at, due_date, source, customer_id, blocked)
+            (id, task_no, title, description, project_id, stage_id, category, status, priority, creator_user_id, creator, expected_completion_at, due_date, source, customer_id, blocked)
             values
-            (#{body.id}, #{body.title}, #{body.description}, #{body.projectId}, #{body.stageId}, #{body.category}, #{body.status}, #{body.priority}, #{body.creatorUserId}, #{body.creatorName}, cast(#{body.expectedCompletionAt} as date), cast(#{body.dueDate} as date), #{body.source}, #{body.customerId}, #{body.blocked})
+            (#{body.id}, #{body.taskNo}, #{body.title}, #{body.description}, #{body.projectId}, #{body.stageId}, #{body.category}, #{body.status}, #{body.priority}, #{body.creatorUserId}, #{body.creatorName}, cast(#{body.expectedCompletionAt} as date), cast(#{body.dueDate} as date), #{body.source}, #{body.customerId}, #{body.blocked})
             """)
     void insert(@Param("body") TaskWriteCommand body);
 
@@ -207,8 +209,11 @@ public interface TaskMapper {
     @Update("update kpm_requirements set status=#{requirementStatus}, update_time=current_timestamp where task_id=#{taskId} and del_flag=0")
     void syncRequirement(@Param("taskId") String taskId, @Param("requirementStatus") String requirementStatus);
 
-    @Select("select coalesce(max(cast(regexp_replace(id, '[^0-9]', '', 'g') as int)), 100) from kpm_tasks where id like 'KPM-%' and del_flag=0")
-    Integer maxTaskNumber();
+    @Select("select nextval('kpm_task_no_seq')")
+    Long nextTaskNumber();
+
+    @Select("select short_name from kpm_customers where id=#{customerId} and del_flag=0")
+    String customerShortName(@Param("customerId") String customerId);
 
     default void insertComment(String commentId, String taskId, Object author, Object content, Object attachments) {
         insertCommentRow(commentId, taskId, author, content, JsonUtil.toJson(attachments == null ? List.of() : attachments));

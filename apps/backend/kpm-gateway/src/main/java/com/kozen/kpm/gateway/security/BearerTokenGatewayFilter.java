@@ -161,7 +161,6 @@ public class BearerTokenGatewayFilter implements GlobalFilter, Ordered {
         if ("GET".equals(verb)) return null;
         if (path.equals("/api/iam/change-password")) return null;
         if (path.equals("/api/files/upload")) return null;
-        if (path.equals("/api/resources/prototype-state")) return null;
 
         if (path.startsWith("/api/tasks")) {
             if ("POST".equals(verb) && path.matches("/api/tasks/[^/]+/comments")) return "button:task-detail:publish-comment";

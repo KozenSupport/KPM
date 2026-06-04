@@ -2,13 +2,22 @@ package com.kozen.kpm.notification.controller;
 
 import com.kozen.kpm.common.api.ApiResponse;
 import com.kozen.kpm.notification.dto.InternalMessageDto;
+import com.kozen.kpm.notification.dto.NotificationSettingsDto;
+import com.kozen.kpm.notification.dto.UnreadCountDto;
+import com.kozen.kpm.notification.dto.UpdatedCountDto;
 import com.kozen.kpm.notification.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -17,11 +26,13 @@ import java.util.Map;
 public class NotificationApiController {
     private final NotificationService notificationService;
 
-    public NotificationApiController(NotificationService notificationService) { this.notificationService = notificationService; }
+    public NotificationApiController(NotificationService notificationService) {
+        this.notificationService = notificationService;
+    }
 
     @GetMapping("/settings")
     @Operation(summary = "消息刷新配置", description = "返回前端轮询内部消息的建议刷新间隔。")
-    public ApiResponse<Map<String, Object>> settings() {
+    public ApiResponse<NotificationSettingsDto> settings() {
         return ApiResponse.ok(notificationService.settings());
     }
 
@@ -36,8 +47,8 @@ public class NotificationApiController {
 
     @GetMapping("/unread-count")
     @Operation(summary = "未读消息数量", description = "查询当前登录用户未读内部消息数量。")
-    public ApiResponse<Map<String, Object>> unreadCount(@RequestHeader("X-KPM-Account") String account) {
-        return ApiResponse.ok(Map.of("count", notificationService.unreadCount(account)));
+    public ApiResponse<UnreadCountDto> unreadCount(@RequestHeader("X-KPM-Account") String account) {
+        return ApiResponse.ok(new UnreadCountDto(notificationService.unreadCount(account)));
     }
 
     @PostMapping("/messages/{id}/read")
@@ -48,7 +59,7 @@ public class NotificationApiController {
 
     @PostMapping("/messages/read-all")
     @Operation(summary = "一键已读", description = "将当前用户所有未读内部消息标记为已读，并返回本次处理数量。")
-    public ApiResponse<Map<String, Object>> markAllRead(@RequestHeader("X-KPM-Account") String account) {
-        return ApiResponse.ok(Map.of("updated", notificationService.markAllRead(account)));
+    public ApiResponse<UpdatedCountDto> markAllRead(@RequestHeader("X-KPM-Account") String account) {
+        return ApiResponse.ok(new UpdatedCountDto(notificationService.markAllRead(account)));
     }
 }

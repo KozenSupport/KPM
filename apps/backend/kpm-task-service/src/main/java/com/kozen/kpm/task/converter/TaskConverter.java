@@ -22,6 +22,7 @@ public class TaskConverter {
     ) {
         return new TaskDto(
                 task.getId(),
+                task.getTaskNo(),
                 task.getTitle(),
                 task.getDescription(),
                 task.getProjectId(),
