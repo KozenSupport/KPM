@@ -33,6 +33,6 @@ env_value() {
 }
 
 echo "KPM full stack is starting."
-echo "Frontend: http://127.0.0.1:$(env_value KPM_FRONTEND_PORT 4173)"
-echo "Gateway:  http://127.0.0.1:$(env_value KPM_GATEWAY_PORT 8080)"
-echo "Nacos:    http://127.0.0.1:$(env_value KPM_NACOS_CONSOLE_PORT 8849)/"
+echo "Frontend: http://127.0.0.1:$(env_value KPM_FRONTEND_PORT 14173)"
+echo "Gateway:  http://127.0.0.1:$(env_value KPM_GATEWAY_PORT 19080)"
+echo "Nacos:    http://127.0.0.1:$(env_value KPM_NACOS_CONSOLE_PORT 18849)/"

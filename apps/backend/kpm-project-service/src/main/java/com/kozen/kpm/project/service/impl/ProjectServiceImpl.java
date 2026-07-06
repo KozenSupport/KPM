@@ -2,6 +2,7 @@ package com.kozen.kpm.project.service.impl;
 
 import com.kozen.kpm.common.api.PageResult;
 import com.kozen.kpm.common.dto.FileMetadataRequest;
+import com.kozen.kpm.common.util.BusinessEnumValues;
 import com.kozen.kpm.common.util.IdUtil;
 import com.kozen.kpm.common.util.JsonUtil;
 import com.kozen.kpm.common.util.PageParamUtil;
@@ -324,7 +325,7 @@ public class ProjectServiceImpl implements ProjectService {
             taskId = IdUtil.nanoId("task");
             String taskNo = nextTaskNo(customerId);
             UserLookupEntity creator = requireUser(request.creator(), "需求关联任务创建者");
-            String taskCategory = requiredEnumBySemantic("task_category", "REQUIREMENT", "需求任务分类");
+            String taskCategory = requiredEnumValue("task_category", BusinessEnumValues.TASK_CATEGORY_REQUIREMENT, "需求任务分类");
             String taskStatus = resolveDefault(null, "task_status", "任务状态");
             projectMapper.insertRequirementTask(new RequirementTaskWriteCommand(taskId, taskNo, projectId, customerId, request.title(), request.userStory(), request.priority(), null, taskCategory, taskStatus, "需求创建自动生成", creator.getId(), creator.getName()));
             projectMapper.insertRequirementTaskAssignee(taskId, creator.getId(), creator.getName());
@@ -336,7 +337,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     @Transactional
     public RequirementDto voidRequirement(String id) {
-        String voidStatus = requiredEnumBySemantic("requirement_status", "VOID", "需求作废状态");
+        String voidStatus = requiredEnumValue("requirement_status", BusinessEnumValues.REQUIREMENT_STATUS_VOID, "需求作废状态");
         projectMapper.voidRequirement(id, voidStatus);
         return projectConverter.toRequirementDto(projectMapper.requirement(id));
     }
@@ -519,10 +520,10 @@ public class ProjectServiceImpl implements ProjectService {
         return defaultValue;
     }
 
-    private String requiredEnumBySemantic(String enumType, String semantic, String label) {
-        String value = projectMapper.enumValueBySemantic(enumType, semantic);
+    private String requiredEnumValue(String enumType, String expectedValue, String label) {
+        String value = projectMapper.enumExactValue(enumType, expectedValue);
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(label + "未配置枚举语义：" + semantic);
+            throw new IllegalArgumentException(label + "未配置枚举值：" + expectedValue);
         }
         return value;
     }

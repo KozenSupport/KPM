@@ -7,6 +7,7 @@ import com.kozen.kpm.task.entity.TaskAttachmentEntity;
 import com.kozen.kpm.task.entity.TaskCommentEntity;
 import com.kozen.kpm.task.entity.TaskEntity;
 import com.kozen.kpm.task.entity.TaskRelatedStringEntity;
+import com.kozen.kpm.task.entity.TaskUserStatsEntity;
 import com.kozen.kpm.task.entity.UserLookupEntity;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
@@ -26,21 +27,6 @@ public interface TaskMapper {
               and (account=#{value} or email=#{value} or name=#{value})
             """)
     List<UserLookupEntity> usersByAccountOrName(@Param("value") Object value);
-
-    @Select("""
-            select semantic from kpm_enum_items
-            where enum_type=#{enumType} and value=#{value} and active=true and del_flag=0
-            limit 1
-            """)
-    String enumSemantic(@Param("enumType") String enumType, @Param("value") String value);
-
-    @Select("""
-            select value from kpm_enum_items
-            where enum_type=#{enumType} and semantic=#{semantic} and active=true and del_flag=0
-            order by sort_order, id
-            limit 1
-            """)
-    String enumValueBySemantic(@Param("enumType") String enumType, @Param("semantic") String semantic);
 
     @Select("""
             select t.id,
@@ -103,7 +89,6 @@ public interface TaskMapper {
             left join kpm_projects p on p.id = t.project_id and p.del_flag=0
             left join kpm_project_stages s on s.id = t.stage_id and s.del_flag=0
             left join kpm_customers c on c.id = t.customer_id and c.del_flag=0
-            left join kpm_enum_items ts on ts.enum_type='task_status' and ts.value=t.status and ts.active=true and ts.del_flag=0
             where t.del_flag=0
               and (#{id} = '' or t.id::text = #{id})
               and (#{like} = '' or t.task_no ilike #{like} or t.title ilike #{like} or t.description ilike #{like} or p.external_name ilike #{like} or c.name ilike #{like})
@@ -111,31 +96,31 @@ public interface TaskMapper {
               and (#{category} = '' or t.category = #{category})
               and (nullif(#{customerId}, '') is null or t.customer_id = nullif(#{customerId}, '')::bigint)
               and (nullif(#{projectId}, '') is null or t.project_id = nullif(#{projectId}, '')::bigint)
-              and (#{relationScope} != 'related' or t.creator_user_id::text=#{userId} or exists (
-                    select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id::text=#{userId}
+              and (#{relationScope} != 'related' or t.creator_user_id = nullif(#{userId}, '')::bigint or exists (
+                    select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint
                   ) or exists (
-                    select 1 from kpm_task_participants tp where tp.task_id=t.id and tp.del_flag=0 and tp.user_id::text=#{userId}
+                    select 1 from kpm_task_participants tp where tp.task_id=t.id and tp.del_flag=0 and tp.user_id = nullif(#{userId}, '')::bigint
                   ))
               and (#{assigneeScope} != 'me' or (
-                    coalesce(ts.semantic, '') not in ('完成', '拒绝')
-                    and exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id::text=#{userId})
+                    coalesce(t.status, '') not in ('已完成', '已拒绝')
+                    and exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint)
                   ))
               and (#{assigneeScope} != 'others' or (
-                    coalesce(ts.semantic, '') not in ('完成', '拒绝')
-                    and not exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id::text=#{userId})
-                    and (t.creator_user_id::text=#{userId}
-                         or exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id::text=#{userId})
-                         or exists (select 1 from kpm_task_participants tp where tp.task_id=t.id and tp.del_flag=0 and tp.user_id::text=#{userId}))
+                    coalesce(t.status, '') not in ('已完成', '已拒绝')
+                    and not exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint)
+                    and (t.creator_user_id = nullif(#{userId}, '')::bigint
+                         or exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint)
+                         or exists (select 1 from kpm_task_participants tp where tp.task_id=t.id and tp.del_flag=0 and tp.user_id = nullif(#{userId}, '')::bigint))
                   ))
               <if test="completedStatuses != null and completedStatuses.size() > 0">
-              and (#{statusScope} != 'completed' or coalesce(ts.semantic, '') = '完成' or t.status in
+              and (#{statusScope} != 'completed' or t.status in
                 <foreach collection="completedStatuses" item="completedStatus" open="(" separator="," close=")">
                   #{completedStatus}
                 </foreach>
               )
               </if>
               <if test="completedStatuses == null or completedStatuses.size() == 0">
-              and (#{statusScope} != 'completed' or coalesce(ts.semantic, '') = '完成')
+              and (#{statusScope} != 'completed' or t.status = '已完成')
               </if>
             order by t.created_at desc, t.id desc
             limit #{limit} offset #{offset}
@@ -163,7 +148,6 @@ public interface TaskMapper {
             from kpm_tasks t
             left join kpm_projects p on p.id = t.project_id and p.del_flag=0
             left join kpm_customers c on c.id = t.customer_id and c.del_flag=0
-            left join kpm_enum_items ts on ts.enum_type='task_status' and ts.value=t.status and ts.active=true and ts.del_flag=0
             where t.del_flag=0
               and (#{id} = '' or t.id::text = #{id})
               and (#{like} = '' or t.task_no ilike #{like} or t.title ilike #{like} or t.description ilike #{like} or p.external_name ilike #{like} or c.name ilike #{like})
@@ -171,31 +155,31 @@ public interface TaskMapper {
               and (#{category} = '' or t.category = #{category})
               and (nullif(#{customerId}, '') is null or t.customer_id = nullif(#{customerId}, '')::bigint)
               and (nullif(#{projectId}, '') is null or t.project_id = nullif(#{projectId}, '')::bigint)
-              and (#{relationScope} != 'related' or t.creator_user_id::text=#{userId} or exists (
-                    select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id::text=#{userId}
+              and (#{relationScope} != 'related' or t.creator_user_id = nullif(#{userId}, '')::bigint or exists (
+                    select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint
                   ) or exists (
-                    select 1 from kpm_task_participants tp where tp.task_id=t.id and tp.del_flag=0 and tp.user_id::text=#{userId}
+                    select 1 from kpm_task_participants tp where tp.task_id=t.id and tp.del_flag=0 and tp.user_id = nullif(#{userId}, '')::bigint
                   ))
               and (#{assigneeScope} != 'me' or (
-                    coalesce(ts.semantic, '') not in ('完成', '拒绝')
-                    and exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id::text=#{userId})
+                    coalesce(t.status, '') not in ('已完成', '已拒绝')
+                    and exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint)
                   ))
               and (#{assigneeScope} != 'others' or (
-                    coalesce(ts.semantic, '') not in ('完成', '拒绝')
-                    and not exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id::text=#{userId})
-                    and (t.creator_user_id::text=#{userId}
-                         or exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id::text=#{userId})
-                         or exists (select 1 from kpm_task_participants tp where tp.task_id=t.id and tp.del_flag=0 and tp.user_id::text=#{userId}))
+                    coalesce(t.status, '') not in ('已完成', '已拒绝')
+                    and not exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint)
+                    and (t.creator_user_id = nullif(#{userId}, '')::bigint
+                         or exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint)
+                         or exists (select 1 from kpm_task_participants tp where tp.task_id=t.id and tp.del_flag=0 and tp.user_id = nullif(#{userId}, '')::bigint))
                   ))
               <if test="completedStatuses != null and completedStatuses.size() > 0">
-              and (#{statusScope} != 'completed' or coalesce(ts.semantic, '') = '完成' or t.status in
+              and (#{statusScope} != 'completed' or t.status in
                 <foreach collection="completedStatuses" item="completedStatus" open="(" separator="," close=")">
                   #{completedStatus}
                 </foreach>
               )
               </if>
               <if test="completedStatuses == null or completedStatuses.size() == 0">
-              and (#{statusScope} != 'completed' or coalesce(ts.semantic, '') = '完成')
+              and (#{statusScope} != 'completed' or t.status = '已完成')
               </if>
             </script>
             """)
@@ -210,6 +194,51 @@ public interface TaskMapper {
             @Param("assigneeScope") String assigneeScope,
             @Param("relationScope") String relationScope,
             @Param("statusScope") String statusScope,
+            @Param("completedStatuses") List<String> completedStatuses
+    );
+
+    @Select("""
+            <script>
+            with scoped as (
+                select t.id,
+                       t.status,
+                       (
+                         t.creator_user_id = nullif(#{userId}, '')::bigint
+                         or exists (
+                             select 1 from kpm_task_assignees ta
+                             where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint
+                         )
+                         or exists (
+                             select 1 from kpm_task_participants tp
+                             where tp.task_id=t.id and tp.del_flag=0 and tp.user_id = nullif(#{userId}, '')::bigint
+                         )
+                       ) as related,
+                       exists (
+                         select 1 from kpm_task_assignees ta
+                         where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint
+                       ) as assigned_to_me
+                from kpm_tasks t
+                where t.del_flag=0
+                  and nullif(#{userId}, '') is not null
+            )
+            select count(*) filter (where related) as total,
+                   count(*) filter (where related and assigned_to_me and coalesce(status, '') not in ('已完成','已拒绝')) as mine,
+                   count(*) filter (where related and not assigned_to_me and coalesce(status, '') not in ('已完成','已拒绝')) as waiting,
+                   <if test="completedStatuses != null and completedStatuses.size() > 0">
+                   count(*) filter (where related and status in
+                     <foreach collection="completedStatuses" item="completedStatus" open="(" separator="," close=")">
+                       #{completedStatus}
+                     </foreach>
+                   ) as completed
+                   </if>
+                   <if test="completedStatuses == null or completedStatuses.size() == 0">
+                   count(*) filter (where related and status = '已完成') as completed
+                   </if>
+            from scoped
+            </script>
+            """)
+    TaskUserStatsEntity userStats(
+            @Param("userId") String userId,
             @Param("completedStatuses") List<String> completedStatuses
     );
 

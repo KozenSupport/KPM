@@ -193,10 +193,8 @@ public interface CustomerPortalMapper {
                    t.project_id as projectId,
                    p.external_name as projectName,
                    t.category,
-                   coalesce(ei.label_zh, ei.name, t.category) as categoryLabelZh,
-                   coalesce(ei.label_en, ei.name, t.category) as categoryLabelEn,
-                   coalesce(ei.short_label_zh, left(coalesce(ei.label_zh, ei.name, t.category), 1)) as categoryShortLabelZh,
-                   coalesce(ei.short_label_en, upper(left(coalesce(ei.label_en, ei.value, t.category), 1))) as categoryShortLabelEn,
+                   coalesce(ei.name, t.category) as categoryName,
+                   coalesce(ei.label_en, ei.name, t.category) as categoryNameEn,
                    t.status,
                    t.priority,
                    t.creator,
@@ -228,10 +226,8 @@ public interface CustomerPortalMapper {
                    t.project_id as projectId,
                    p.external_name as projectName,
                    t.category,
-                   coalesce(ei.label_zh, ei.name, t.category) as categoryLabelZh,
-                   coalesce(ei.label_en, ei.name, t.category) as categoryLabelEn,
-                   coalesce(ei.short_label_zh, left(coalesce(ei.label_zh, ei.name, t.category), 1)) as categoryShortLabelZh,
-                   coalesce(ei.short_label_en, upper(left(coalesce(ei.label_en, ei.value, t.category), 1))) as categoryShortLabelEn,
+                   coalesce(ei.name, t.category) as categoryName,
+                   coalesce(ei.label_en, ei.name, t.category) as categoryNameEn,
                    t.status,
                    t.priority,
                    t.creator,
@@ -300,7 +296,7 @@ public interface CustomerPortalMapper {
               where enum_type='task_status'
                 and active=true
                 and del_flag=0
-                and (semantic in ('完成', 'COMPLETED') or value='已完成')
+                and value='已完成'
             ),
             scoped_tasks as (
               select t.*,
@@ -310,7 +306,7 @@ public interface CustomerPortalMapper {
                        where tc.task_id=t.id
                          and tc.comment_type='external'
                          and tc.del_flag=0
-                         and coalesce(tc.author, '') not like '客户:%'
+                         and coalesce(tc.creator, '') != 'customer-portal'
                      ) as first_response_at
               from kpm_tasks t
               where t.customer_id=#{customerId}
@@ -336,7 +332,7 @@ public interface CustomerPortalMapper {
               where enum_type='task_status'
                 and active=true
                 and del_flag=0
-                and (semantic in ('完成', 'COMPLETED') or value='已完成')
+                and value='已完成'
             ),
             scoped_tasks as (
               select t.*,
@@ -347,7 +343,7 @@ public interface CustomerPortalMapper {
                        where tc.task_id=t.id
                          and tc.comment_type='external'
                          and tc.del_flag=0
-                         and coalesce(tc.author, '') not like '客户:%'
+                         and coalesce(tc.creator, '') != 'customer-portal'
                      ) as first_response_at
               from kpm_tasks t
               left join kpm_projects p on p.id=t.project_id and p.del_flag=0
@@ -394,17 +390,15 @@ public interface CustomerPortalMapper {
     @Select("""
             <script>
             select t.category,
-                   coalesce(ei.label_zh, ei.name, t.category) as labelZh,
-                   coalesce(ei.label_en, ei.name, t.category) as labelEn,
-                   coalesce(ei.short_label_zh, left(coalesce(ei.label_zh, ei.name, t.category), 1)) as shortLabelZh,
-                   coalesce(ei.short_label_en, upper(left(coalesce(ei.label_en, ei.value, t.category), 1))) as shortLabelEn,
+                   coalesce(ei.name, t.category) as categoryName,
+                   coalesce(ei.label_en, ei.name, t.category) as categoryNameEn,
                    count(1) as totalTasks
             from kpm_tasks t
             left join kpm_enum_items ei on ei.enum_type='task_category' and ei.value=t.category and ei.active=true and ei.del_flag=0
             where t.customer_id=#{customerId}
               and t.del_flag=0
               and (#{projectId} = '' or t.project_id=nullif(#{projectId}, '')::bigint)
-            group by t.category, ei.label_zh, ei.label_en, ei.short_label_zh, ei.short_label_en, ei.name, ei.value
+            group by t.category, ei.name, ei.label_en
             order by totalTasks desc, t.category
             </script>
             """)
@@ -464,14 +458,6 @@ public interface CustomerPortalMapper {
 
     @Select("""
             select value from kpm_enum_items
-            where enum_type=#{enumType} and active=true and del_flag=0
-            order by case when semantic=#{semantic} then 0 when semantic='DEFAULT' then 1 else 2 end, sort_order, id
-            limit 1
-            """)
-    String enumValue(@Param("enumType") String enumType, @Param("semantic") String semantic);
-
-    @Select("""
-            select value from kpm_enum_items
             where enum_type=#{enumType} and value=#{value} and active=true and del_flag=0
             limit 1
             """)
@@ -528,10 +514,8 @@ public interface CustomerPortalMapper {
                    t.project_id as projectId,
                    p.external_name as projectName,
                    t.category,
-                   coalesce(ei.label_zh, ei.name, t.category) as categoryLabelZh,
-                   coalesce(ei.label_en, ei.name, t.category) as categoryLabelEn,
-                   coalesce(ei.short_label_zh, left(coalesce(ei.label_zh, ei.name, t.category), 1)) as categoryShortLabelZh,
-                   coalesce(ei.short_label_en, upper(left(coalesce(ei.label_en, ei.value, t.category), 1))) as categoryShortLabelEn,
+                   coalesce(ei.name, t.category) as categoryName,
+                   coalesce(ei.label_en, ei.name, t.category) as categoryNameEn,
                    t.status,
                    t.priority,
                    t.creator,

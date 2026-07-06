@@ -14,6 +14,21 @@ spring:
       maximum-pool-size: ${KPM_DB_POOL_MAX_SIZE:5}
       minimum-idle: ${KPM_DB_POOL_MIN_IDLE:1}
       connection-init-sql: SET TIME ZONE '${KPM_DB_TIMEZONE:Asia/Shanghai}'
+  data:
+    redis:
+      host: ${KPM_VALKEY_HOST:127.0.0.1}
+      port: ${KPM_VALKEY_PORT:6379}
+  mail:
+    host: ${KPM_MAIL_HOST:}
+    port: ${KPM_MAIL_PORT:587}
+    username: ${KPM_MAIL_USERNAME:}
+    password: ${KPM_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${KPM_MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${KPM_MAIL_STARTTLS_ENABLE:true}
   cloud:
     nacos:
       server-addr: ${KPM_NACOS_ADDR:127.0.0.1:8848}
@@ -27,6 +42,9 @@ spring:
         namespace: ${KPM_NACOS_NAMESPACE:public}
 
 management:
+  health:
+    mail:
+      enabled: ${KPM_IAM_MAIL_HEALTH_ENABLED:${KPM_IAM_MAIL_ENABLED:false}}
   endpoints:
     web:
       exposure:
@@ -39,3 +57,8 @@ management:
 kpm:
   service:
     code: iam
+  iam:
+    password-code-ttl-seconds: ${KPM_IAM_PASSWORD_CODE_TTL_SECONDS:600}
+    otp-debug-enabled: ${KPM_IAM_OTP_DEBUG_ENABLED:true}
+    mail-enabled: ${KPM_IAM_MAIL_ENABLED:false}
+    mail-from: ${KPM_IAM_MAIL_FROM:noreply@kozen.example}

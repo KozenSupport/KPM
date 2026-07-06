@@ -23,8 +23,7 @@ public interface AnalyticsMapper {
             select count(distinct p.id)
             from kpm_projects p
             join kpm_project_stages s on s.project_id=p.id and s.del_flag=0
-            left join kpm_enum_items e on e.enum_type='stage_status' and e.value=s.status and e.del_flag=0
-            where p.del_flag=0 and (coalesce(e.semantic, '') = 'ACTIVE' or s.status = '进行中')
+            where p.del_flag=0 and s.status = '进行中'
             """)
     Integer activeProjectCount();
 
@@ -34,8 +33,7 @@ public interface AnalyticsMapper {
     @Select("""
             select count(*)
             from kpm_tasks t
-            left join kpm_enum_items e on e.enum_type='task_status' and e.value=t.status
-            where t.del_flag=0 and coalesce(e.semantic, '普通') not in ('完成','拒绝')
+            where t.del_flag=0 and coalesce(t.status, '') not in ('已完成','已拒绝')
             """)
     Integer openTaskCount();
 
@@ -125,10 +123,10 @@ public interface AnalyticsMapper {
 
     @Select("""
             select c.id as customer_id, c.name as customer_name, coalesce(u.name, co.owner_name) as support_owner,
-                   count(t.id) filter (where coalesce(ts.semantic, '普通') not in ('完成','拒绝') and t.category='需求') as open_requirement_count,
-                   count(t.id) filter (where coalesce(ts.semantic, '普通') not in ('完成','拒绝') and lower(coalesce(t.category, ''))='bug') as open_bug_count,
-                   count(t.id) filter (where coalesce(ts.semantic, '普通') not in ('完成','拒绝') and t.category <> '需求' and lower(coalesce(t.category, '')) <> 'bug') as open_other_count,
-                   count(t.id) filter (where coalesce(ts.semantic, '普通') not in ('完成','拒绝') and t.blocked = true) as blocked_count
+                   count(t.id) filter (where coalesce(t.status, '') not in ('已完成','已拒绝') and t.category='需求') as open_requirement_count,
+                   count(t.id) filter (where coalesce(t.status, '') not in ('已完成','已拒绝') and lower(coalesce(t.category, ''))='bug') as open_bug_count,
+                   count(t.id) filter (where coalesce(t.status, '') not in ('已完成','已拒绝') and t.category <> '需求' and lower(coalesce(t.category, '')) <> 'bug') as open_other_count,
+                   count(t.id) filter (where coalesce(t.status, '') not in ('已完成','已拒绝') and t.blocked = true) as blocked_count
             from kpm_customers c
             join kpm_customer_owners co on co.customer_id=c.id and co.owner_type='support' and co.del_flag=0
             left join kpm_users u on u.del_flag=0 and (u.id = co.owner_user_id or (co.owner_user_id is null and u.name = co.owner_name))
@@ -136,7 +134,6 @@ public interface AnalyticsMapper {
                 select 1 from kpm_task_assignees ta
                 where ta.task_id=t.id and ta.del_flag=0 and (ta.user_id = co.owner_user_id or (ta.user_id is null and ta.assignee_name = coalesce(u.name, co.owner_name)))
             )
-            left join kpm_enum_items ts on ts.enum_type='task_status' and ts.value=t.status and ts.del_flag=0
             where c.del_flag=0 and (#{customerId} = '' or c.id::text = #{customerId})
             group by c.id, c.name, coalesce(u.name, co.owner_name)
             order by c.name, coalesce(u.name, co.owner_name)
@@ -160,10 +157,9 @@ public interface AnalyticsMapper {
                 select t.customer_id,
                        count(*) as open_task_count
                 from kpm_tasks t
-                left join kpm_enum_items ts on ts.enum_type='task_status' and ts.value=t.status and ts.del_flag=0
-                where t.del_flag=0
+                    where t.del_flag=0
                   and t.customer_id is not null
-                  and coalesce(ts.semantic, '普通') not in ('完成','拒绝')
+                  and coalesce(t.status, '') not in ('已完成','已拒绝')
                 group by t.customer_id
             ),
             project_agg as (

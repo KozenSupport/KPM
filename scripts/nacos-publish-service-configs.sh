@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOCAL_NACOS_CONFIG_DIR="${KPM_LOCAL_NACOS_CONFIG_DIR:-$ROOT_DIR/.local/nacos/configs}"
 mkdir -p "$LOCAL_NACOS_CONFIG_DIR"
 
-NACOS_ADDR="${KPM_NACOS_ADDR:-127.0.0.1:8848}"
+NACOS_ADDR="${KPM_NACOS_ADDR:-127.0.0.1:${KPM_NACOS_PORT:-18848}}"
 NAMESPACE="${KPM_NACOS_NAMESPACE:-public}"
 GROUP="${KPM_NACOS_CONFIG_GROUP:-DEFAULT_GROUP}"
 DB_HOST="${KPM_DB_HOST:-kpm-postgres}"
@@ -138,12 +138,65 @@ YAML
 YAML
 }
 
+logging_root_block() {
+  cat <<YAML
+logging:
+  level:
+    root: ${KPM_LOG_LEVEL_ROOT:-INFO}
+    com.kozen.kpm: ${KPM_LOG_LEVEL_APP:-INFO}
+YAML
+}
+
+mail_config_block() {
+  cat <<YAML
+  mail:
+    host: ${KPM_MAIL_HOST:-}
+    port: ${KPM_MAIL_PORT:-587}
+    username: ${KPM_MAIL_USERNAME:-}
+    password: ${KPM_MAIL_PASSWORD:-}
+    properties:
+      mail:
+        smtp:
+          auth: ${KPM_MAIL_SMTP_AUTH:-true}
+          starttls:
+            enable: ${KPM_MAIL_STARTTLS_ENABLE:-true}
+YAML
+}
+
+mail_health_block() {
+  cat <<YAML
+management:
+  health:
+    mail:
+      enabled: ${KPM_MAIL_HEALTH_ENABLED:-${KPM_ERROR_ALERT_ENABLED:-false}}
+YAML
+}
+
+kpm_logging_block() {
+  cat <<YAML
+  logging:
+    enabled: ${KPM_APP_LOGGING_ENABLED:-true}
+    controller-log-enabled: ${KPM_CONTROLLER_LOG_ENABLED:-true}
+    response-log-enabled: ${KPM_RESPONSE_LOG_ENABLED:-true}
+    service-log-enabled: ${KPM_SERVICE_LOG_ENABLED:-true}
+    max-payload-length: ${KPM_LOG_MAX_PAYLOAD_LENGTH:-2000}
+    error-alert:
+      enabled: ${KPM_ERROR_ALERT_ENABLED:-false}
+      threshold: ${KPM_ERROR_ALERT_THRESHOLD:-5}
+      window-seconds: ${KPM_ERROR_ALERT_WINDOW_SECONDS:-60}
+      cooldown-seconds: ${KPM_ERROR_ALERT_COOLDOWN_SECONDS:-300}
+      mail-from: ${KPM_ERROR_ALERT_MAIL_FROM:-noreply@kozen.example}
+      recipients: ${KPM_ERROR_ALERT_RECIPIENTS:-[]}
+YAML
+}
+
 base_config() {
   local port="$1"
   local code="$2"
   cat <<YAML
 server:
   port: ${port}
+$(logging_root_block)
 spring:
   datasource:
     url: ${DB_JDBC_URL}
@@ -153,12 +206,15 @@ spring:
       maximum-pool-size: ${KPM_DB_POOL_MAX_SIZE:-5}
       minimum-idle: ${KPM_DB_POOL_MIN_IDLE:-1}
       connection-init-sql: SET TIME ZONE '${DB_TIMEZONE}'
+$(mail_config_block)
+$(mail_health_block)
 kpm:
   service:
     code: ${code}
   auth:
     token-secret: ${AUTH_SECRET}
     token-ttl-seconds: ${KPM_AUTH_TOKEN_TTL_SECONDS:-7200}
+$(kpm_logging_block)
 YAML
 }
 
@@ -171,10 +227,10 @@ redis_config_block() {
 YAML
 }
 
-publish kpm-iam-service.yaml "$(base_config 8101 iam)"
-publish kpm-resource-service.yaml "$(cat <<YAML
+publish kpm-iam-service.yaml "$(cat <<YAML
 server:
-  port: 8102
+  port: 8101
+$(logging_root_block)
 spring:
 $(redis_config_block)
   datasource:
@@ -185,6 +241,51 @@ $(redis_config_block)
       maximum-pool-size: ${KPM_DB_POOL_MAX_SIZE:-5}
       minimum-idle: ${KPM_DB_POOL_MIN_IDLE:-1}
       connection-init-sql: SET TIME ZONE '${DB_TIMEZONE}'
+  mail:
+    host: ${KPM_MAIL_HOST:-}
+    port: ${KPM_MAIL_PORT:-587}
+    username: ${KPM_MAIL_USERNAME:-}
+    password: ${KPM_MAIL_PASSWORD:-}
+    properties:
+      mail:
+        smtp:
+          auth: ${KPM_MAIL_SMTP_AUTH:-true}
+          starttls:
+            enable: ${KPM_MAIL_STARTTLS_ENABLE:-true}
+management:
+  health:
+    mail:
+      enabled: ${KPM_IAM_MAIL_HEALTH_ENABLED:-${KPM_IAM_MAIL_ENABLED:-false}}
+kpm:
+  service:
+    code: iam
+  auth:
+    token-secret: ${AUTH_SECRET}
+    token-ttl-seconds: ${KPM_AUTH_TOKEN_TTL_SECONDS:-7200}
+  iam:
+    password-code-ttl-seconds: ${KPM_IAM_PASSWORD_CODE_TTL_SECONDS:-600}
+    otp-debug-enabled: ${KPM_IAM_OTP_DEBUG_ENABLED:-true}
+    mail-enabled: ${KPM_IAM_MAIL_ENABLED:-false}
+    mail-from: ${KPM_IAM_MAIL_FROM:-noreply@kozen.example}
+$(kpm_logging_block)
+YAML
+)"
+publish kpm-resource-service.yaml "$(cat <<YAML
+server:
+  port: 8102
+$(logging_root_block)
+spring:
+$(redis_config_block)
+  datasource:
+    url: ${DB_JDBC_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${KPM_DB_POOL_MAX_SIZE:-5}
+      minimum-idle: ${KPM_DB_POOL_MIN_IDLE:-1}
+      connection-init-sql: SET TIME ZONE '${DB_TIMEZONE}'
+$(mail_config_block)
+$(mail_health_block)
 kpm:
   service:
     code: resource
@@ -195,12 +296,14 @@ kpm:
     resource:
       bootstrap-ttl-seconds: ${KPM_RESOURCE_BOOTSTRAP_CACHE_TTL_SECONDS:-60}
       bootstrap-jitter-seconds: ${KPM_RESOURCE_BOOTSTRAP_CACHE_JITTER_SECONDS:-20}
+$(kpm_logging_block)
 YAML
 )"
 publish kpm-project-service.yaml "$(base_config 8103 project)"
 publish kpm-customer-service.yaml "$(cat <<YAML
 server:
   port: 8104
+$(logging_root_block)
 spring:
 $(redis_config_block)
   datasource:
@@ -237,6 +340,7 @@ kpm:
     otp-debug-enabled: ${KPM_CUSTOMER_PORTAL_OTP_DEBUG_ENABLED:-true}
     mail-enabled: ${KPM_CUSTOMER_PORTAL_MAIL_ENABLED:-false}
     mail-from: ${KPM_CUSTOMER_PORTAL_MAIL_FROM:-noreply@kozen.example}
+$(kpm_logging_block)
 YAML
 )"
 publish kpm-task-service.yaml "$(base_config 8105 task)"
@@ -244,27 +348,36 @@ publish kpm-order-service.yaml "$(base_config 8106 order)"
 publish kpm-integration-service.yaml "$(cat <<YAML
 server:
   port: 8109
+$(logging_root_block)
+spring:
+$(mail_config_block)
+$(mail_health_block)
 kpm:
   service:
     code: integration
   auth:
     token-secret: ${AUTH_SECRET}
+$(kpm_logging_block)
 YAML
 )"
 
 publish kpm-file-service.yaml "$(cat <<YAML
 server:
   port: 8107
+$(logging_root_block)
 spring:
   servlet:
     multipart:
       max-file-size: ${KPM_UPLOAD_MAX_FILE_SIZE:-500MB}
       max-request-size: ${KPM_UPLOAD_MAX_REQUEST_SIZE:-520MB}
+$(mail_config_block)
+$(mail_health_block)
 kpm:
   service:
     code: file
   auth:
     token-secret: ${AUTH_SECRET}
+$(kpm_logging_block)
 $(file_oss_config_block)
 YAML
 )"
@@ -272,6 +385,7 @@ YAML
 publish kpm-analytics-service.yaml "$(cat <<YAML
 server:
   port: 8108
+$(logging_root_block)
 spring:
 $(redis_config_block)
   datasource:
@@ -282,6 +396,8 @@ $(redis_config_block)
       maximum-pool-size: ${KPM_DB_POOL_MAX_SIZE:-5}
       minimum-idle: ${KPM_DB_POOL_MIN_IDLE:-1}
       connection-init-sql: SET TIME ZONE '${DB_TIMEZONE}'
+$(mail_config_block)
+$(mail_health_block)
 kpm:
   service:
     code: analytics
@@ -306,12 +422,14 @@ kpm:
     user-agent: ${KPM_GEOCODING_USER_AGENT:-Kozen-KPM/0.1}
     minimum-request-interval-millis: ${KPM_GEOCODING_MIN_INTERVAL_MS:-1100}
     request-timeout-seconds: ${KPM_GEOCODING_TIMEOUT_SECONDS:-3}
+$(kpm_logging_block)
 YAML
 )"
 
 publish kpm-gateway.yaml "$(cat <<YAML
 server:
   port: 8080
+$(logging_root_block)
 spring:
   cloud:
     gateway:
@@ -385,12 +503,14 @@ kpm:
     rbac-enabled: ${KPM_RBAC_ENABLED:-true}
     token-secret: ${AUTH_SECRET}
     token-ttl-seconds: ${KPM_AUTH_TOKEN_TTL_SECONDS:-7200}
+$(kpm_logging_block)
 YAML
 )"
 
 publish kpm-notification-service.yaml "$(cat <<YAML
 server:
   port: 8110
+$(logging_root_block)
 spring:
   datasource:
     url: ${DB_JDBC_URL}
@@ -425,5 +545,6 @@ kpm:
     processor-interval-ms: ${KPM_NOTIFICATION_PROCESSOR_INTERVAL_MS:-15000}
     mail-enabled: ${KPM_NOTIFICATION_MAIL_ENABLED:-false}
     mail-from: ${KPM_NOTIFICATION_MAIL_FROM:-noreply@kozen.example}
+$(kpm_logging_block)
 YAML
 )"

@@ -9,7 +9,7 @@ CREATE INDEX IF NOT EXISTS idx_kpm_user_roles_role ON kpm_user_roles (role_id, d
 CREATE INDEX IF NOT EXISTS idx_kpm_role_permissions_permission ON kpm_role_permissions (permission_id, del_flag, role_id);
 CREATE INDEX IF NOT EXISTS idx_kpm_user_permissions_permission ON kpm_user_permissions (permission_id, del_flag, user_id);
 CREATE INDEX IF NOT EXISTS idx_kpm_enum_items_lookup ON kpm_enum_items (enum_type, value, active, del_flag);
-CREATE INDEX IF NOT EXISTS idx_kpm_enum_items_default ON kpm_enum_items (enum_type, semantic, active, del_flag, sort_order, id);
+CREATE INDEX IF NOT EXISTS idx_kpm_enum_items_order ON kpm_enum_items (enum_type, active, del_flag, sort_order, id);
 
 -- Project management
 CREATE INDEX IF NOT EXISTS idx_kpm_projects_list ON kpm_projects (del_flag, archived, created_at DESC, id DESC);

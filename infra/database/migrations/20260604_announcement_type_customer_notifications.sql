@@ -3,12 +3,12 @@
 ALTER TABLE kpm_project_announcements
   ADD COLUMN IF NOT EXISTS announcement_type TEXT NOT NULL DEFAULT '普通公告';
 
-INSERT INTO kpm_enum_items (id, enum_type, name, value, semantic, active, sort_order) VALUES
-  (5060,'project_announcement_type','普通公告','普通公告','DEFAULT',true,10),
-  (5061,'project_announcement_type','产品 EOL 公告','产品EOL公告','EOL',true,20)
+INSERT INTO kpm_enum_items (id, enum_type, name, value, label_en, active, sort_order) VALUES
+  (5060,'project_announcement_type','普通公告','普通公告','General Notice',true,10),
+  (5061,'project_announcement_type','产品 EOL 公告','产品EOL公告','Product EOL Notice',true,20)
 ON CONFLICT (enum_type, value) DO UPDATE SET
   name=excluded.name,
-  semantic=excluded.semantic,
+  label_en=excluded.label_en,
   active=excluded.active,
   sort_order=excluded.sort_order,
   del_flag=0,

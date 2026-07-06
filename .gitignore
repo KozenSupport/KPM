@@ -15,3 +15,6 @@ apps/frontend/kpm-web/vite.config.js
 apps/frontend/kpm-web/vite.config.d.ts
 
 .local/
+
+# Runtime logs
+apps/backend/logs/

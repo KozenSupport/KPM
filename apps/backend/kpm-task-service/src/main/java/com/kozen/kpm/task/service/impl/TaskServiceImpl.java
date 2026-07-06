@@ -2,6 +2,7 @@ package com.kozen.kpm.task.service.impl;
 
 import com.kozen.kpm.common.api.PageResult;
 import com.kozen.kpm.common.dto.FileMetadataRequest;
+import com.kozen.kpm.common.util.BusinessEnumValues;
 import com.kozen.kpm.common.util.IdUtil;
 import com.kozen.kpm.common.util.JsonUtil;
 import com.kozen.kpm.common.util.PageParamUtil;
@@ -13,10 +14,12 @@ import com.kozen.kpm.task.dto.TaskCommentRequest;
 import com.kozen.kpm.task.dto.TaskDto;
 import com.kozen.kpm.task.dto.TaskRequest;
 import com.kozen.kpm.task.dto.TaskWriteCommand;
+import com.kozen.kpm.task.dto.TaskUserStatsDto;
 import com.kozen.kpm.task.entity.TaskAttachmentEntity;
 import com.kozen.kpm.task.entity.TaskCommentEntity;
 import com.kozen.kpm.task.entity.TaskEntity;
 import com.kozen.kpm.task.entity.TaskRelatedStringEntity;
+import com.kozen.kpm.task.entity.TaskUserStatsEntity;
 import com.kozen.kpm.task.entity.UserLookupEntity;
 import com.kozen.kpm.task.mapper.TaskMapper;
 import com.kozen.kpm.task.service.TaskService;
@@ -70,6 +73,25 @@ public class TaskServiceImpl implements TaskService {
         List<TaskDto> items = enrichTaskSummaries(taskMapper.pageRows(like, st, cat, customer, project, taskId, scopedUserId, assignee, relation, statusScopeValue, completed, size, PageParamUtil.offset(current, size)));
         long total = taskMapper.countRows(like, st, cat, customer, project, taskId, scopedUserId, assignee, relation, statusScopeValue, completed);
         return PageResult.of(items, total, current, size);
+    }
+
+    @Override
+    public TaskUserStatsDto userStats(String userId, List<String> completedStatuses) {
+        String scopedUserId = SqlParamUtil.blankIfAll(userId);
+        if (scopedUserId.isBlank()) {
+            throw new IllegalArgumentException("用户ID不能为空");
+        }
+        List<String> completed = completedStatuses == null
+                ? List.of()
+                : completedStatuses.stream().filter(value -> value != null && !value.isBlank()).toList();
+        TaskUserStatsEntity stats = taskMapper.userStats(scopedUserId, completed);
+        return new TaskUserStatsDto(
+                defaultLong(stats == null ? null : stats.getTotal()),
+                defaultLong(stats == null ? null : stats.getMine()),
+                defaultLong(stats == null ? null : stats.getWaiting()),
+                defaultLong(stats == null ? null : stats.getCompleted()),
+                scopedUserId
+        );
     }
 
     private List<TaskDto> enrichTasks(List<TaskEntity> tasks) {
@@ -253,6 +275,10 @@ public class TaskServiceImpl implements TaskService {
                 ));
     }
 
+    private long defaultLong(Long value) {
+        return value == null ? 0L : value;
+    }
+
     private void replacePeople(String taskId, TaskRequest request) {
         taskMapper.deleteAssignees(taskId);
         for (String name : request.safeAssignees()) {
@@ -319,13 +345,12 @@ public class TaskServiceImpl implements TaskService {
     }
 
     private void syncRequirementByTaskStatus(String taskId, String status) {
-        String semantic = taskMapper.enumSemantic("task_status", status);
-        if ("完成".equals(semantic) || "拒绝".equals(semantic)) {
-            String requirementStatus = taskMapper.enumValueBySemantic("requirement_status", semantic);
-            if (requirementStatus == null || requirementStatus.isBlank()) {
-                throw new IllegalArgumentException("需求状态未配置语义：" + semantic);
-            }
-            taskMapper.syncRequirement(taskId, requirementStatus);
+        if (BusinessEnumValues.TASK_STATUS_COMPLETED.equals(status)) {
+            taskMapper.syncRequirement(taskId, BusinessEnumValues.REQUIREMENT_STATUS_COMPLETED);
+            return;
+        }
+        if (BusinessEnumValues.TASK_STATUS_REJECTED.equals(status)) {
+            taskMapper.syncRequirement(taskId, BusinessEnumValues.REQUIREMENT_STATUS_REJECTED);
         }
     }
 

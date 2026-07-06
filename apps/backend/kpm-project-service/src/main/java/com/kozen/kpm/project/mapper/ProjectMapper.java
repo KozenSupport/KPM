@@ -119,25 +119,17 @@ public interface ProjectMapper {
     @Select("""
             select value from kpm_enum_items
             where enum_type=#{enumType} and active=true
-            order by case when semantic='DEFAULT' then 0 else 1 end, sort_order, id
+            order by sort_order, id
             limit 1
             """)
     String defaultEnumValue(@Param("enumType") String enumType);
 
     @Select("""
             select value from kpm_enum_items
-            where enum_type=#{enumType} and semantic=#{semantic} and active=true
-            order by sort_order, id
+            where enum_type=#{enumType} and value=#{value} and active=true and del_flag=0
             limit 1
             """)
-    String enumValueBySemantic(@Param("enumType") String enumType, @Param("semantic") String semantic);
-
-    @Select("""
-            select semantic from kpm_enum_items
-            where enum_type=#{enumType} and value=#{value} and active=true
-            limit 1
-            """)
-    String enumSemantic(@Param("enumType") String enumType, @Param("value") String value);
+    String enumExactValue(@Param("enumType") String enumType, @Param("value") String value);
 
     @Insert("""
             insert into kpm_projects (id, external_name, internal_name, model_name, manager_user_id, manager_account, archived, description)

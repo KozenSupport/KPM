@@ -7,6 +7,7 @@ import com.kozen.kpm.task.dto.TaskCommentDto;
 import com.kozen.kpm.task.dto.TaskCommentRequest;
 import com.kozen.kpm.task.dto.TaskDto;
 import com.kozen.kpm.task.dto.TaskRequest;
+import com.kozen.kpm.task.dto.TaskUserStatsDto;
 import com.kozen.kpm.task.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,6 +43,12 @@ public class TaskApiController {
                                                  @RequestParam(defaultValue = "1") Integer page,
                                                  @RequestParam(defaultValue = "20") Integer pageSize) {
         return ApiResponse.ok(taskService.page(keyword, status, category, customerId, projectId, id, userId, assignee, scope, statusScope, completedStatuses, page, pageSize));
+    }
+    @GetMapping("/stats")
+    @Operation(summary = "当前用户任务统计", description = "按任务列表同一用户关联口径统计总数、我正在执行、等待他人和已完成。")
+    public ApiResponse<TaskUserStatsDto> userStats(@RequestParam String userId,
+                                                   @RequestParam(required = false) List<String> completedStatuses) {
+        return ApiResponse.ok(taskService.userStats(userId, completedStatuses));
     }
     @GetMapping("/{id}")
     @Operation(summary = "查询任务详情")

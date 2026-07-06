@@ -8,11 +8,7 @@ public record EnumItemDto(
         String enumType,
         String name,
         String value,
-        String labelZh,
-        String labelEn,
-        String shortLabelZh,
-        String shortLabelEn,
-        String semantic,
+        String nameEn,
         Boolean active,
         Integer sortOrder
 ) {}

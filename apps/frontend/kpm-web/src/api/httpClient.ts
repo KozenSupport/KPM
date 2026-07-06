@@ -1,6 +1,6 @@
 import type { ApiResponse } from '../types/api';
 
-const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8080';
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:19080';
 const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
 const UPLOAD_REQUEST_TIMEOUT_MS = 10 * 60_000;
 

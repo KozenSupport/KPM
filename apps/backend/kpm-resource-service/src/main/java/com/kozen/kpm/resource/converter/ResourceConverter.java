@@ -58,11 +58,7 @@ public class ResourceConverter {
                 item.getEnumType(),
                 item.getName(),
                 item.getValue(),
-                item.getLabelZh(),
-                item.getLabelEn(),
-                item.getShortLabelZh(),
-                item.getShortLabelEn(),
-                item.getSemantic(),
+                item.getNameEn(),
                 item.getActive(),
                 item.getSortOrder()
         );

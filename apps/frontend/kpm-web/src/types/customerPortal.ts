@@ -73,10 +73,8 @@ export type CustomerPortalTask = {
   projectId?: Id;
   projectName?: string;
   category?: string;
-  categoryLabelZh?: string;
-  categoryLabelEn?: string;
-  categoryShortLabelZh?: string;
-  categoryShortLabelEn?: string;
+  categoryName?: string;
+  categoryNameEn?: string;
   status?: string;
   priority?: string;
   creator?: string;
@@ -107,10 +105,8 @@ export type CustomerPortalTaskCreatorStats = {
 
 export type CustomerPortalTaskCategoryStats = {
   category: string;
-  labelZh?: string;
-  labelEn?: string;
-  shortLabelZh?: string;
-  shortLabelEn?: string;
+  categoryName?: string;
+  categoryNameEn?: string;
   totalTasks: number;
 };
 

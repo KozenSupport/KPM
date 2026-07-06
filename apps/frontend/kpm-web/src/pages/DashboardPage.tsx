@@ -1,5 +1,6 @@
 import { CheckCircleOutlined, ClockCircleOutlined, ProjectOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { Card, Col, Empty, Row } from 'antd';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataState } from '../components/common/DataState';
@@ -7,35 +8,42 @@ import { PageScaffold } from '../components/PageScaffold';
 import { StatCard } from '../components/StatCard';
 import { useAuth } from '../context/AuthContext';
 import { useKpmData } from '../hooks/useKpmData';
+import { kpmApi } from '../services/kpmApi';
 import type { Project } from '../types';
-import { isClosedTaskStatus, isCompletedTaskStatus } from '../utils/format';
-import { resolveTaskUser, taskAssignedToUser, taskRelatedToUser } from '../utils/taskScope';
+import { resolveTaskUser } from '../utils/taskScope';
 
 export function DashboardPage() {
   const { data, isLoading, error } = useKpmData();
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const taskStats = useMemo(() => {
-    const tasks = data?.tasks || [];
-    const completedStatusValues = new Set((data?.bootstrap?.enumItems || [])
-      .filter((item) => item.enumType === 'task_status' && item.semantic === '完成')
+  const completedStatusValues = useMemo(() => (data?.bootstrap?.enumItems || [])
+      .filter((item) => item.enumType === 'task_status' && item.value === '已完成')
       .map((item) => item.value)
-      .filter(Boolean));
-    const current = resolveTaskUser(data?.bootstrap?.users || [], user);
-    const relatedTasks = tasks.filter((task) => taskRelatedToUser(task, current));
-    const openTasks = relatedTasks.filter((task) => !isClosedTaskStatus(task.status));
-    const mine = openTasks.filter((task) => taskAssignedToUser(task, current));
-    const waiting = openTasks.filter((task) => !taskAssignedToUser(task, current));
-    const completed = relatedTasks.filter((task) => completedStatusValues.has(String(task.status || '')) || isCompletedTaskStatus(task.status));
-    return { total: relatedTasks.length, mine: mine.length, waiting: waiting.length, completed: completed.length, currentUserId: current.id };
-  }, [data?.bootstrap?.enumItems, data?.bootstrap?.users, data?.tasks, user]);
+      .filter(Boolean), [data?.bootstrap?.enumItems]);
+  const currentTaskUser = useMemo(() => resolveTaskUser(data?.bootstrap?.users || [], user), [data?.bootstrap?.users, user]);
+  const taskStatsQuery = useQuery({
+    queryKey: ['kpm', 'task-user-stats', currentTaskUser.id, completedStatusValues],
+    queryFn: () => kpmApi.taskUserStats({
+      userId: currentTaskUser.id,
+      completedStatuses: completedStatusValues,
+    }),
+    enabled: Boolean(currentTaskUser.id && data?.bootstrap),
+    staleTime: 10_000,
+  });
+  const taskStats = {
+    total: taskStatsQuery.data?.total || 0,
+    mine: taskStatsQuery.data?.mine || 0,
+    waiting: taskStatsQuery.data?.waiting || 0,
+    completed: taskStatsQuery.data?.completed || 0,
+    currentUserId: taskStatsQuery.data?.userId || currentTaskUser.id,
+  };
 
   const recentProjects = (data?.projects || []).slice(0, 12);
 
   return (
     <PageScaffold title="工作台" subtitle="快速查看与你有关的任务、项目与系统动态。">
-      <DataState loading={isLoading} error={error}>
+      <DataState loading={isLoading || taskStatsQuery.isLoading} error={error || taskStatsQuery.error}>
         <Row gutter={[16, 16]}>
           <Col xs={24} md={6}><StatCard icon={<UnorderedListOutlined />} title="任务总数" value={taskStats.total} onClick={() => navigate(`/tasks?scope=related&userId=${encodeURIComponent(taskStats.currentUserId || '')}`)} /></Col>
           <Col xs={24} md={6}><StatCard icon={<ClockCircleOutlined />} title="我正在执行" value={taskStats.mine} accent="green" onClick={() => navigate(`/tasks?assignee=me&assigneeUserId=${encodeURIComponent(taskStats.currentUserId || '')}`)} /></Col>

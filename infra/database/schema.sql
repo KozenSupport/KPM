@@ -138,11 +138,7 @@ CREATE TABLE kpm_enum_items (
   enum_type TEXT NOT NULL,
   name TEXT NOT NULL,
   value TEXT NOT NULL,
-  label_zh TEXT,
   label_en TEXT,
-  short_label_zh TEXT,
-  short_label_en TEXT,
-  semantic TEXT,
   active BOOLEAN NOT NULL DEFAULT TRUE,
   sort_order INT NOT NULL DEFAULT 0,
   UNIQUE (enum_type, value)
@@ -538,7 +534,7 @@ CREATE INDEX IF NOT EXISTS idx_kpm_user_roles_role ON kpm_user_roles (role_id, d
 CREATE INDEX IF NOT EXISTS idx_kpm_role_permissions_permission ON kpm_role_permissions (permission_id, del_flag, role_id);
 CREATE INDEX IF NOT EXISTS idx_kpm_user_permissions_permission ON kpm_user_permissions (permission_id, del_flag, user_id);
 CREATE INDEX IF NOT EXISTS idx_kpm_enum_items_lookup ON kpm_enum_items (enum_type, value, active, del_flag);
-CREATE INDEX IF NOT EXISTS idx_kpm_enum_items_default ON kpm_enum_items (enum_type, semantic, active, del_flag, sort_order, id);
+CREATE INDEX IF NOT EXISTS idx_kpm_enum_items_order ON kpm_enum_items (enum_type, active, del_flag, sort_order, id);
 CREATE INDEX IF NOT EXISTS idx_kpm_projects_list ON kpm_projects (del_flag, archived, created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_kpm_projects_manager ON kpm_projects (manager_user_id, del_flag);
 CREATE INDEX IF NOT EXISTS idx_kpm_project_skus_project ON kpm_project_skus (project_id, active, del_flag, updated_at DESC);
@@ -672,3 +668,15 @@ CREATE INDEX IF NOT EXISTS idx_kpm_knowledge_article_projects_project ON kpm_kno
 CREATE INDEX IF NOT EXISTS idx_kpm_knowledge_article_customers_article ON kpm_knowledge_article_customers (article_id, del_flag);
 CREATE INDEX IF NOT EXISTS idx_kpm_knowledge_article_customers_customer ON kpm_knowledge_article_customers (customer_id, customer_scope, del_flag, article_id);
 CREATE INDEX IF NOT EXISTS idx_kpm_knowledge_article_tasks_task ON kpm_knowledge_article_tasks (task_id, del_flag, article_id);
+
+-- Additional indexes for task dashboard statistics and analytics dashboards.
+CREATE INDEX IF NOT EXISTS idx_kpm_tasks_creator_status_active ON kpm_tasks (creator_user_id, status, created_at DESC, id DESC) WHERE del_flag = 0;
+CREATE INDEX IF NOT EXISTS idx_kpm_tasks_customer_status_active ON kpm_tasks (customer_id, status, created_at DESC, id DESC) WHERE del_flag = 0 AND customer_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_kpm_task_assignees_user_task_active ON kpm_task_assignees (user_id, task_id) WHERE del_flag = 0 AND user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_kpm_task_participants_user_task_active ON kpm_task_participants (user_id, task_id) WHERE del_flag = 0 AND user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_kpm_orders_analytics_active ON kpm_orders (order_date, project_id, customer_id, currency) INCLUDE (amount, quantity) WHERE del_flag = 0;
+CREATE INDEX IF NOT EXISTS idx_kpm_orders_customer_latest_active ON kpm_orders (customer_id, order_date DESC) WHERE del_flag = 0;
+CREATE INDEX IF NOT EXISTS idx_kpm_customer_followups_latest_active ON kpm_customer_followups (customer_id, created_at DESC) WHERE del_flag = 0;
+CREATE INDEX IF NOT EXISTS idx_kpm_project_customers_customer_project_active ON kpm_project_customers (customer_id, project_id) WHERE del_flag = 0;
+CREATE INDEX IF NOT EXISTS idx_kpm_project_customers_project_customer_active ON kpm_project_customers (project_id, customer_id) WHERE del_flag = 0;
+CREATE INDEX IF NOT EXISTS idx_kpm_customer_owners_type_user_customer_active ON kpm_customer_owners (owner_type, owner_user_id, customer_id) WHERE del_flag = 0;

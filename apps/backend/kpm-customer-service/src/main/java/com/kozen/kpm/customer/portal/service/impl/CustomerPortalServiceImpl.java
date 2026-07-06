@@ -3,6 +3,7 @@ package com.kozen.kpm.customer.portal.service.impl;
 import com.kozen.kpm.common.api.PageResult;
 import com.kozen.kpm.common.auth.AuthTokenUtil;
 import com.kozen.kpm.common.util.IdUtil;
+import com.kozen.kpm.common.util.BusinessEnumValues;
 import com.kozen.kpm.common.util.JsonUtil;
 import com.kozen.kpm.common.util.PageParamUtil;
 import com.kozen.kpm.customer.knowledge.dto.KnowledgeArticleDto;
@@ -186,10 +187,10 @@ public class CustomerPortalServiceImpl implements com.kozen.kpm.customer.portal.
         }
         String id = IdUtil.nanoId("task");
         String taskNo = contact.getCustomerShortName().trim().toUpperCase() + mapper.nextTaskNumber();
-        String category = firstNonBlank(mapper.enumExactValue("task_category", "技术支持"), mapper.enumValue("task_category", "DEFAULT"), "技术支持");
-        String status = firstNonBlank(mapper.enumValue("task_status", "DEFAULT"), "待处理");
-        String priority = firstNonBlank(request.priority(), mapper.enumValue("task_priority", "DEFAULT"), "中");
-        String creator = "客户:" + contact.getContactName() + "<" + contact.getEmail() + ">";
+        String category = firstNonBlank(mapper.enumExactValue("task_category", BusinessEnumValues.TASK_CATEGORY_SUPPORT), BusinessEnumValues.TASK_CATEGORY_SUPPORT);
+        String status = firstNonBlank(mapper.enumExactValue("task_status", BusinessEnumValues.TASK_STATUS_TODO), BusinessEnumValues.TASK_STATUS_TODO);
+        String priority = firstNonBlank(request.priority(), mapper.enumExactValue("task_priority", BusinessEnumValues.TASK_PRIORITY_MEDIUM), BusinessEnumValues.TASK_PRIORITY_MEDIUM);
+        String creator = contactAuthor(contact);
         mapper.insertTask(id, taskNo, request.title().trim(), request.description().trim(), request.projectId(), category, status, priority, creator, contact.getCustomerId());
         for (CustomerPortalSupportOwnerEntity owner : supportOwners) {
             mapper.insertAssignee(id, owner.getUserId(), owner.getName());
@@ -330,7 +331,7 @@ public class CustomerPortalServiceImpl implements com.kozen.kpm.customer.portal.
         if (!hasText && !hasFiles) {
             throw new IllegalArgumentException("留言内容或附件不能为空");
         }
-        String author = "客户:" + contact.getContactName() + "<" + contact.getEmail() + ">";
+        String author = contactAuthor(contact);
         mapper.insertExternalTaskComment(IdUtil.nanoId("tc"), taskId, author, request.content(), request.safeAttachments());
         CustomerPortalTaskEntity task = mapper.task(contact.getCustomerId(), taskId);
         publishCustomerCommentNotification(taskId, task == null ? taskId : firstNonBlank(task.getTaskNo(), task.getTitle(), taskId), request.content(), contact);
@@ -405,6 +406,10 @@ public class CustomerPortalServiceImpl implements com.kozen.kpm.customer.portal.
         } catch (Exception e) {
             log.warn("Failed to send customer portal OTP mail to {}: {}", contact.getEmail(), e.getMessage());
         }
+    }
+
+    private String contactAuthor(CustomerPortalContactEntity contact) {
+        return firstNonBlank(contact.getContactName(), contact.getEmail(), "customer") + "<" + contact.getEmail() + ">";
     }
 
     private void publishNotification(String taskId, String taskNo, String title, CustomerPortalContactEntity contact, List<CustomerPortalSupportOwnerEntity> supportOwners) {

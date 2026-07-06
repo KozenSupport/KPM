@@ -23,15 +23,15 @@ ALTER TABLE kpm_orders ADD COLUMN IF NOT EXISTS sku_snapshot JSONB NOT NULL DEFA
 ALTER TABLE kpm_orders ADD COLUMN IF NOT EXISTS status TEXT;
 ALTER TABLE kpm_orders ADD COLUMN IF NOT EXISTS actual_ship_date DATE;
 
-INSERT INTO kpm_enum_items (id, enum_type, name, value, semantic, active, sort_order) VALUES
-('enum-order-status-1','order_status','已创建','已创建','DEFAULT',true,10),
-('enum-order-status-2','order_status','生产中','生产中','IN_PRODUCTION',true,20),
-('enum-order-status-3','order_status','已发货','已发货','SHIPPED',true,30),
-('enum-order-status-4','order_status','已收货','已收货','RECEIVED',true,40),
-('enum-order-status-5','order_status','已完成','已完成','COMPLETED',true,50)
+INSERT INTO kpm_enum_items (id, enum_type, name, value, label_en, active, sort_order) VALUES
+('enum-order-status-1','order_status','已创建','已创建','Created',true,10),
+('enum-order-status-2','order_status','生产中','生产中','In Production',true,20),
+('enum-order-status-3','order_status','已发货','已发货','Shipped',true,30),
+('enum-order-status-4','order_status','已收货','已收货','Received',true,40),
+('enum-order-status-5','order_status','已完成','已完成','Completed',true,50)
 ON CONFLICT (enum_type, value) DO UPDATE
 SET name=EXCLUDED.name,
-    semantic=COALESCE(kpm_enum_items.semantic, EXCLUDED.semantic),
+    label_en=EXCLUDED.label_en,
     active=true,
     sort_order=EXCLUDED.sort_order;
 
@@ -41,7 +41,7 @@ SET status = (
   FROM kpm_enum_items
   WHERE enum_type='order_status'
     AND active=true
-  ORDER BY CASE WHEN semantic='DEFAULT' THEN 0 ELSE 1 END, sort_order, id
+  ORDER BY sort_order, id
   LIMIT 1
 )
 WHERE status IS NULL OR status = '';

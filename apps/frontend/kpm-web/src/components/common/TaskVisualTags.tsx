@@ -3,12 +3,9 @@ import { Tag, Tooltip } from 'antd';
 type TagProps = {
   value?: string | null;
   label?: string | null;
-  shortLabel?: string | null;
 };
 
-function firstDisplayChar(value?: string | null, preferred?: string | null) {
-  const configured = String(preferred || '').trim();
-  if (configured) return configured;
+function firstDisplayChar(value?: string | null) {
   const text = String(value || '').trim();
   if (!text) return '-';
   const first = Array.from(text)[0] || '-';
@@ -31,12 +28,12 @@ function priorityColor(value?: string | null) {
   return 'default';
 }
 
-export function TaskCategoryTag({ value, label, shortLabel }: TagProps) {
+export function TaskCategoryTag({ value, label }: TagProps) {
   const text = String(value || '').trim();
   const display = String(label || text || '').trim();
   return (
     <Tooltip title={display || '-'}>
-      <Tag className="kpm-compact-task-tag" color={stableColor(text || display)}>{firstDisplayChar(display, shortLabel)}</Tag>
+      <Tag className="kpm-compact-task-tag" color={stableColor(text || display)}>{firstDisplayChar(display)}</Tag>
     </Tooltip>
   );
 }

@@ -20,7 +20,7 @@ import { confirmSubmit } from '../hooks/useConfirmingForm';
 import { kpmApi } from '../services/kpmApi';
 import type { AnyRecord, Task } from '../types';
 import { MAX_ATTACHMENT_SIZE_MB, attachmentLimitMessage, downloadBusinessFile, isWithinAttachmentLimit, normalizeUploadFiles, uploadBusinessFiles } from '../utils/fileUpload';
-import { compactId, dateText, dateTimeText, enumDisplayLabel, enumShortLabel, enumValues } from '../utils/format';
+import { compactId, dateText, dateTimeText, enumDisplayLabel, enumValues } from '../utils/format';
 import { resolveTaskUser } from '../utils/taskScope';
 import { validationRules } from '../validation';
 
@@ -49,7 +49,7 @@ export function TasksPage() {
   const refresh = useRefreshKpmData();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [form] = Form.useForm();
   const [commentForm] = Form.useForm();
   const [attachmentForm] = Form.useForm();
@@ -75,7 +75,7 @@ export function TasksPage() {
   }, [searchParams]);
 
   const completedStatusValues = useMemo(() => new Set((data?.bootstrap?.enumItems || [])
-    .filter((item) => item.enumType === 'task_status' && item.semantic === '完成')
+    .filter((item) => item.enumType === 'task_status' && item.value === '已完成')
     .map((item) => item.value)
     .filter(Boolean)), [data?.bootstrap?.enumItems]);
 
@@ -111,6 +111,12 @@ export function TasksPage() {
   function refreshTaskPage() {
     refresh();
     queryClient.invalidateQueries({ queryKey: ['kpm', 'tasks-page'] });
+  }
+
+  function resetFilters() {
+    setSearchParams({});
+    setFilters({ keyword: '', status: undefined, category: undefined, customerId: undefined, projectId: undefined });
+    setPagination((prev) => ({ ...prev, current: 1 }));
   }
 
   const activeDetail = useMemo(() => {
@@ -243,11 +249,12 @@ export function TasksPage() {
       <DataState loading={isLoading || taskPageQuery.isLoading} error={error || taskPageQuery.error}>
         <Card className="kpm-card kpm-filter-card">
           <Space wrap>
-            <Input.Search allowClear placeholder="搜索任务编号 / 标题 / 项目 / 客户" onSearch={(keyword) => { setPagination((prev) => ({ ...prev, current: 1 })); setFilters((prev) => ({ ...prev, keyword })); }} onChange={(e) => { setPagination((prev) => ({ ...prev, current: 1 })); setFilters((prev) => ({ ...prev, keyword: e.target.value })); }} />
+            <Input.Search allowClear value={filters.keyword} placeholder="搜索任务编号 / 标题 / 项目 / 客户" onSearch={(keyword) => { setPagination((prev) => ({ ...prev, current: 1 })); setFilters((prev) => ({ ...prev, keyword })); }} onChange={(e) => { setPagination((prev) => ({ ...prev, current: 1 })); setFilters((prev) => ({ ...prev, keyword: e.target.value })); }} />
             <EnumSelect bootstrap={data?.bootstrap} enumType="task_status" placeholder="任务状态" value={filters.status} onChange={(status) => { setPagination((prev) => ({ ...prev, current: 1 })); setFilters((prev) => ({ ...prev, status })); }} style={{ width: 160 }} />
             <EnumSelect bootstrap={data?.bootstrap} enumType="task_category" placeholder="任务分类" value={filters.category} onChange={(category) => { setPagination((prev) => ({ ...prev, current: 1 })); setFilters((prev) => ({ ...prev, category })); }} style={{ width: 160 }} />
             <CustomerSelect customers={data?.customers} placeholder="客户" value={filters.customerId} onChange={(customerId) => { setPagination((prev) => ({ ...prev, current: 1 })); setFilters((prev) => ({ ...prev, customerId })); }} style={{ width: 220 }} />
             <ProjectSelect projects={data?.projects} placeholder="项目" value={filters.projectId} onChange={(projectId) => { setPagination((prev) => ({ ...prev, current: 1 })); setFilters((prev) => ({ ...prev, projectId })); }} style={{ width: 220 }} />
+            <Button onClick={resetFilters}>重置筛选</Button>
           </Space>
         </Card>
         <Card className="kpm-card">
@@ -261,7 +268,7 @@ export function TasksPage() {
               { title: '标题', dataIndex: 'title', ellipsis: true, render: (title, row) => <button className="link-button truncate" type="button" onClick={() => openDetail(row)}>{title}</button> },
               { title: '分类', dataIndex: 'category', width: 74, align: 'center', render: (value) => {
                 const item = taskCategoryMap.get(value);
-                return <TaskCategoryTag value={value} label={enumDisplayLabel(item, i18n.language) || value} shortLabel={enumShortLabel(item, i18n.language)} />;
+                return <TaskCategoryTag value={value} label={enumDisplayLabel(item, i18n.language) || value} />;
               } },
               { title: '状态', dataIndex: 'status', width: 120, render: (value) => <StatusTag value={value} /> },
               { title: '优先级', dataIndex: 'priority', width: 90, render: (value) => <TaskPriorityTag value={value} /> },

@@ -31,11 +31,7 @@ export type EnumItem = {
   enumType: string;
   name?: string;
   value: string;
-  labelZh?: string;
-  labelEn?: string;
-  shortLabelZh?: string;
-  shortLabelEn?: string;
-  semantic?: string;
+  nameEn?: string;
   active?: boolean;
   sortOrder?: number;
 };
@@ -194,6 +190,14 @@ export type KnowledgeArticle = {
 
 export type DashboardStats = { projectCount?: number; activeProjectCount?: number; customerCount?: number; openTaskCount?: number; [key: string]: any };
 
+export type TaskUserStats = {
+  total: number;
+  mine: number;
+  waiting: number;
+  completed: number;
+  userId?: string;
+};
+
 export type AppData = {
   bootstrap: BootstrapData;
   projects: Project[];
@@ -213,4 +217,27 @@ export type LoginResponse = {
   tokenType?: string;
   expiresIn?: number;
   user: User;
+};
+
+export type ProfileStats = {
+  createdTasks: number;
+  assignedTasks: number;
+  completedTasks: number;
+  participatedTasks: number;
+  customerReplies: number;
+  publishedKbArticles: number;
+  projectCount: number;
+  customerCount: number;
+};
+
+export type Profile = {
+  user: User;
+  stats: ProfileStats;
+};
+
+export type PasswordCodeResponse = {
+  sent: boolean;
+  expiresInSeconds: number;
+  message: string;
+  debugCode?: string | null;
 };

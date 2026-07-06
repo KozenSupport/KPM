@@ -11,10 +11,8 @@ public class CustomerPortalTaskEntity {
     private String projectId;
     private String projectName;
     private String category;
-    private String categoryLabelZh;
-    private String categoryLabelEn;
-    private String categoryShortLabelZh;
-    private String categoryShortLabelEn;
+    private String categoryName;
+    private String categoryNameEn;
     private String status;
     private String priority;
     private String creator;
@@ -38,14 +36,10 @@ public class CustomerPortalTaskEntity {
     public void setProjectName(String projectName) { this.projectName = projectName; }
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
-    public String getCategoryLabelZh() { return categoryLabelZh; }
-    public void setCategoryLabelZh(String categoryLabelZh) { this.categoryLabelZh = categoryLabelZh; }
-    public String getCategoryLabelEn() { return categoryLabelEn; }
-    public void setCategoryLabelEn(String categoryLabelEn) { this.categoryLabelEn = categoryLabelEn; }
-    public String getCategoryShortLabelZh() { return categoryShortLabelZh; }
-    public void setCategoryShortLabelZh(String categoryShortLabelZh) { this.categoryShortLabelZh = categoryShortLabelZh; }
-    public String getCategoryShortLabelEn() { return categoryShortLabelEn; }
-    public void setCategoryShortLabelEn(String categoryShortLabelEn) { this.categoryShortLabelEn = categoryShortLabelEn; }
+    public String getCategoryName() { return categoryName; }
+    public void setCategoryName(String categoryName) { this.categoryName = categoryName; }
+    public String getCategoryNameEn() { return categoryNameEn; }
+    public void setCategoryNameEn(String categoryNameEn) { this.categoryNameEn = categoryNameEn; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public String getPriority() { return priority; }

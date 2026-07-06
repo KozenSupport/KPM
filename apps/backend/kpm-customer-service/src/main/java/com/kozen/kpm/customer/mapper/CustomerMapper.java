@@ -29,7 +29,7 @@ public interface CustomerMapper {
     @Select("""
             select value from kpm_enum_items
             where enum_type=#{enumType} and active=true
-            order by case when semantic='DEFAULT' then 0 else 1 end, sort_order, id
+            order by sort_order, id
             limit 1
             """)
     String defaultEnumValue(@Param("enumType") String enumType);

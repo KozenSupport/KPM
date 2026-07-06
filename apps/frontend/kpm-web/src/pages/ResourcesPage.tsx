@@ -54,7 +54,7 @@ export function ResourcesPage() {
   }, [data?.bootstrap.enumItems]);
   const filteredEnumItems = useMemo(() => (data?.bootstrap.enumItems || []).filter((item) => {
     const matchesType = !enumTypeFilter || item.enumType === enumTypeFilter;
-    const matchesKeyword = includesKeyword([item.enumType, item.name, item.value, item.labelZh, item.labelEn, item.shortLabelZh, item.shortLabelEn, item.semantic], enumKeyword);
+    const matchesKeyword = includesKeyword([item.enumType, item.name, item.value, item.nameEn], enumKeyword);
     return matchesType && matchesKeyword;
   }), [data?.bootstrap.enumItems, enumKeyword, enumTypeFilter]);
 
@@ -184,17 +184,14 @@ export function ResourcesPage() {
               key: 'enums', label: '枚举管理', children: <Card className="kpm-card" extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openEnum()}>新增枚举</Button>}>
                 <Space wrap className="kpm-table-toolbar">
                   <Select allowClear showSearch optionFilterProp="label" placeholder="按枚举类型筛选" value={enumTypeFilter} onChange={setEnumTypeFilter} options={enumFilterOptions} style={{ width: 260 }} />
-                  <Input.Search allowClear placeholder="搜索名称 / 值 / 中英文显示 / 语义" onSearch={setEnumKeyword} onChange={(event) => setEnumKeyword(event.target.value)} style={{ width: 300 }} />
+                  <Input.Search allowClear placeholder="搜索中文名称 / 英文名称 / 值" onSearch={setEnumKeyword} onChange={(event) => setEnumKeyword(event.target.value)} style={{ width: 300 }} />
                   <Tag color="blue">共 {filteredEnumItems.length} 项</Tag>
                 </Space>
-                <Table<EnumItem> size="small" rowKey="id" dataSource={filteredEnumItems} pagination={{ pageSize: 12, showSizeChanger: true }} scroll={{ x: 1280 }} columns={[
+                <Table<EnumItem> size="small" rowKey="id" dataSource={filteredEnumItems} pagination={{ pageSize: 12, showSizeChanger: true }} scroll={{ x: 980 }} columns={[
                   { title: '枚举类型', dataIndex: 'enumType', width: 180 },
-                  { title: '展示名称', dataIndex: 'name', width: 140 },
-                  { title: '值', dataIndex: 'value', width: 120 },
-                  { title: '中文显示', dataIndex: 'labelZh', width: 140, render: (value, row) => value || row.name || row.value },
-                  { title: '英文显示', dataIndex: 'labelEn', width: 150, render: (value, row) => value || row.name || row.value },
-                  { title: '短标签', width: 120, render: (_, row) => <Space size={4}><Tag>{row.shortLabelZh || '-'}</Tag><Tag color="blue">{row.shortLabelEn || '-'}</Tag></Space> },
-                  { title: '语义', dataIndex: 'semantic', width: 120 },
+                  { title: '中文名称', dataIndex: 'name', width: 160 },
+                  { title: '英文名称', dataIndex: 'nameEn', width: 180, render: (value, row) => value || row.name || row.value },
+                  { title: '枚举值', dataIndex: 'value', width: 150 },
                   { title: '状态', dataIndex: 'active', width: 90, render: (value) => <StatusTag value={value} /> },
                   { title: '排序', dataIndex: 'sortOrder', width: 80 },
                   { title: '操作', width: 112, render: (_, row) => <ActionButtons onEdit={() => openEnum(row)} onDelete={() => kpmApi.deleteEnum(row.id).then(() => { message.success('枚举已删除'); refresh(); })} /> },
@@ -232,18 +229,10 @@ export function ResourcesPage() {
           <Form form={enumForm} layout="vertical">
             <Form.Item name="enumType" label="枚举类型" rules={[validationRules.required('请选择枚举类型')]}><Select showSearch options={enumTypeOptions} /></Form.Item>
             <Space.Compact block>
-              <Form.Item name="name" label="展示名称" rules={[validationRules.required('请输入展示名称')]} style={{ width: '50%' }}><Input /></Form.Item>
-              <Form.Item name="value" label="枚举值" style={{ width: '50%' }}><Input /></Form.Item>
+              <Form.Item name="name" label="中文名称" rules={[validationRules.required('请输入中文名称')]} style={{ width: '50%' }}><Input placeholder="例如：技术支持" /></Form.Item>
+              <Form.Item name="nameEn" label="英文名称" style={{ width: '50%' }}><Input placeholder="例如：Support" /></Form.Item>
             </Space.Compact>
-            <Space.Compact block>
-              <Form.Item name="labelZh" label="中文显示" style={{ width: '50%' }}><Input placeholder="例如：技术支持" /></Form.Item>
-              <Form.Item name="labelEn" label="英文显示" style={{ width: '50%' }}><Input placeholder="例如：Support" /></Form.Item>
-            </Space.Compact>
-            <Space.Compact block>
-              <Form.Item name="shortLabelZh" label="中文短标签" style={{ width: '50%' }}><Input maxLength={12} placeholder="例如：支" /></Form.Item>
-              <Form.Item name="shortLabelEn" label="英文短标签" style={{ width: '50%' }}><Input maxLength={12} placeholder="例如：S" /></Form.Item>
-            </Space.Compact>
-            <Form.Item name="semantic" label="语义"><Input placeholder="DEFAULT / ACTIVE / COMPLETED 等" /></Form.Item>
+            <Form.Item name="value" label="枚举值" tooltip="接口传参与后端业务判断使用该值，保存后不建议随意修改。"><Input placeholder="例如：技术支持" /></Form.Item>
             <Space.Compact block>
               <Form.Item name="active" label="启用" valuePropName="checked" style={{ width: '50%' }}><Switch /></Form.Item>
               <Form.Item name="sortOrder" label="排序" style={{ width: '50%' }}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>

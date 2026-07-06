@@ -6,11 +6,7 @@ public class EnumItemEntity {
     private String enumType;
     private String name;
     private String value;
-    private String labelZh;
-    private String labelEn;
-    private String shortLabelZh;
-    private String shortLabelEn;
-    private String semantic;
+    private String nameEn;
     private Boolean active;
     private Integer sortOrder;
 
@@ -22,16 +18,8 @@ public class EnumItemEntity {
     public void setName(String name) { this.name = name; }
     public String getValue() { return value; }
     public void setValue(String value) { this.value = value; }
-    public String getLabelZh() { return labelZh; }
-    public void setLabelZh(String labelZh) { this.labelZh = labelZh; }
-    public String getLabelEn() { return labelEn; }
-    public void setLabelEn(String labelEn) { this.labelEn = labelEn; }
-    public String getShortLabelZh() { return shortLabelZh; }
-    public void setShortLabelZh(String shortLabelZh) { this.shortLabelZh = shortLabelZh; }
-    public String getShortLabelEn() { return shortLabelEn; }
-    public void setShortLabelEn(String shortLabelEn) { this.shortLabelEn = shortLabelEn; }
-    public String getSemantic() { return semantic; }
-    public void setSemantic(String semantic) { this.semantic = semantic; }
+    public String getNameEn() { return nameEn; }
+    public void setNameEn(String nameEn) { this.nameEn = nameEn; }
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }
     public Integer getSortOrder() { return sortOrder; }

@@ -23,7 +23,7 @@ export const resources = {
       },
       portalLogin: {
         brand: "Kozen",
-        title: "客户联系人登录",
+        title: "登录",
         description: "邮箱验证码登录。",
         email: "联系人邮箱",
         code: "动态验证码",
@@ -249,6 +249,7 @@ export const resources = {
         messageBox: "消息盒子",
         markAllRead: "一键已读",
         noMessages: "暂无消息",
+        profileCenter: "个人中心",
         changePassword: "修改密码",
         logout: "退出登录",
       },
@@ -279,7 +280,7 @@ export const resources = {
       },
       portalLogin: {
         brand: "Kozen",
-        title: "Customer Contact Login",
+        title: "Login",
         description: "Sign in with email code.",
         email: "Contact Email",
         code: "One-time Code",
@@ -507,6 +508,7 @@ export const resources = {
         messageBox: "Message Box",
         markAllRead: "Mark all read",
         noMessages: "No messages",
+        profileCenter: "Profile Center",
         changePassword: "Change Password",
         logout: "Log out",
       },

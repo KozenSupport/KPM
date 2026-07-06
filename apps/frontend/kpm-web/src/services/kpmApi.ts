@@ -9,8 +9,11 @@ import type {
   LoginResponse,
   Order,
   PageResult,
+  PasswordCodeResponse,
+  Profile,
   Project,
   Task,
+  TaskUserStats,
 } from "../types";
 
 export const storageKeys = {
@@ -42,6 +45,9 @@ export const kpmApi = {
   login: (account: string, password: string) =>
     api.post<LoginResponse>("/api/iam/login", { account, password }),
   me: () => api.get<LoginResponse["user"]>("/api/iam/me"),
+  profile: () => api.get<Profile>("/api/iam/profile"),
+  requestPasswordCode: (body: AnyRecord) =>
+    api.post<PasswordCodeResponse>("/api/iam/password-code", body),
   changePassword: (body: AnyRecord) =>
     api.post<boolean>("/api/iam/change-password", body),
 
@@ -164,6 +170,8 @@ export const kpmApi = {
   tasks: () => api.get<Task[]>("/api/tasks"),
   tasksPage: (params: Record<string, QueryValue> = {}) =>
     api.get<PageResult<Task>>(`/api/tasks/page${queryString(params)}`),
+  taskUserStats: (params: Record<string, QueryValue> = {}) =>
+    api.get<TaskUserStats>(`/api/tasks/stats${queryString(params)}`),
   task: (id: string) => api.get<Task>(`/api/tasks/${id}`),
   createTask: (body: AnyRecord) => api.post<Task>("/api/tasks", body),
   updateTask: (id: string, body: AnyRecord) =>

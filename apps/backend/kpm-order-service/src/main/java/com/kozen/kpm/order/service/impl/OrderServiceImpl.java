@@ -1,6 +1,7 @@
 package com.kozen.kpm.order.service.impl;
 
 import com.kozen.kpm.common.api.PageResult;
+import com.kozen.kpm.common.util.BusinessEnumValues;
 import com.kozen.kpm.common.util.IdUtil;
 import com.kozen.kpm.common.util.JsonUtil;
 import com.kozen.kpm.common.util.PageParamUtil;
@@ -210,9 +211,9 @@ public class OrderServiceImpl implements OrderService {
         if (requestedStatus != null && !requestedStatus.isBlank()) {
             return requestedStatus;
         }
-        String status = orderMapper.defaultEnumValue("order_status");
+        String status = orderMapper.enumExactValue("order_status", BusinessEnumValues.ORDER_STATUS_CREATED);
         if (status == null || status.isBlank()) {
-            throw new IllegalArgumentException("订单状态未配置默认枚举值，请先在资源管理中配置");
+            throw new IllegalArgumentException("订单状态未配置枚举值：" + BusinessEnumValues.ORDER_STATUS_CREATED);
         }
         return status;
     }
@@ -232,20 +233,26 @@ public class OrderServiceImpl implements OrderService {
         if (String.valueOf(nextStatus).equals(String.valueOf(previousStatus))) {
             return false;
         }
-        return "SHIPPED".equals(orderMapper.enumSemantic("order_status", nextStatus));
+        return BusinessEnumValues.ORDER_STATUS_SHIPPED.equals(orderMapper.enumExactValue("order_status", nextStatus));
     }
 
     private void ensureProjectCustomer(String projectId, String customerId, String orderType) {
-        String status = orderMapper.customerProjectStatusByOrderType(orderType);
-        if (status == null || status.isBlank()) {
-            throw new IllegalArgumentException("订单类型未配置客户项目状态映射：" + orderType);
-        }
+        String status = customerProjectStatusByOrderType(orderType);
         List<String> ids = orderMapper.projectCustomerIds(projectId, customerId);
         if (ids.isEmpty()) {
             orderMapper.insertProjectCustomer(IdUtil.nanoId("pc"), projectId, customerId, status);
         } else {
             orderMapper.updateProjectCustomerStatus(projectId, customerId, status);
         }
+    }
+
+    private String customerProjectStatusByOrderType(String orderType) {
+        return switch (String.valueOf(orderType)) {
+            case BusinessEnumValues.ORDER_TYPE_SAMPLE -> BusinessEnumValues.CUSTOMER_PROJECT_SAMPLE_TEST;
+            case BusinessEnumValues.ORDER_TYPE_PRE_ORDER -> BusinessEnumValues.CUSTOMER_PROJECT_OPPORTUNITY;
+            case BusinessEnumValues.ORDER_TYPE_FORMAL -> BusinessEnumValues.CUSTOMER_PROJECT_ORDER_SPRINT;
+            default -> throw new IllegalArgumentException("订单类型未配置客户项目状态映射：" + orderType);
+        };
     }
 
     private String summarize(OrderDto before, OrderWriteCommand after) {

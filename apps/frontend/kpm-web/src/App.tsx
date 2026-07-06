@@ -1,4 +1,6 @@
 import { lazy, Suspense } from 'react';
+import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate, Route, HashRouter as Router, Routes, useLocation } from 'react-router-dom';
 import { Skeleton } from 'antd';
 import './styles.css';
@@ -12,6 +14,7 @@ const CustomersPage = lazy(() => import('./pages/CustomersPage').then((module) =
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })));
 const KnowledgePage = lazy(() => import('./pages/KnowledgePage').then((module) => ({ default: module.KnowledgePage })));
 const OrdersPage = lazy(() => import('./pages/OrdersPage').then((module) => ({ default: module.OrdersPage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then((module) => ({ default: module.ProfilePage })));
 const ProjectDetailPage = lazy(() => import('./pages/ProjectDetailPage').then((module) => ({ default: module.ProjectDetailPage })));
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage').then((module) => ({ default: module.ProjectsPage })));
 const ResourcesPage = lazy(() => import('./pages/ResourcesPage').then((module) => ({ default: module.ResourcesPage })));
@@ -37,11 +40,25 @@ function AuthRedirect() {
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />;
 }
 
+function RouteLanguageScope() {
+  const location = useLocation();
+  const { i18n } = useTranslation();
+  useEffect(() => {
+    const isPortal = location.pathname.startsWith('/customer-login') || location.pathname.startsWith('/customer-portal');
+    const key = isPortal ? 'kpm.portal.language' : 'kpm.language';
+    const fallback = isPortal ? 'en-US' : 'zh-CN';
+    const next = window.localStorage.getItem(key) || fallback;
+    if (i18n.language !== next) void i18n.changeLanguage(next);
+  }, [i18n, location.pathname]);
+  return null;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <I18nDomBridge />
       <Router>
+        <RouteLanguageScope />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/login" element={<AuthRedirect />} />
@@ -51,6 +68,7 @@ export default function App() {
             <Route element={<ProtectedLayout />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:id" element={<ProjectDetailPage />} />
               <Route path="/customers" element={<CustomersPage />} />

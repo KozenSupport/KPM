@@ -207,11 +207,7 @@ public interface ResourceMapper {
                    enum_type as enumType,
                    name,
                    value,
-                   label_zh as labelZh,
-                   label_en as labelEn,
-                   short_label_zh as shortLabelZh,
-                   short_label_en as shortLabelEn,
-                   semantic,
+                   label_en as nameEn,
                    active,
                    sort_order as sortOrder
             from kpm_enum_items
@@ -240,11 +236,7 @@ public interface ResourceMapper {
                    enum_type as enumType,
                    name,
                    value,
-                   label_zh as labelZh,
-                   label_en as labelEn,
-                   short_label_zh as shortLabelZh,
-                   short_label_en as shortLabelEn,
-                   semantic,
+                   label_en as nameEn,
                    active,
                    sort_order as sortOrder
             from kpm_enum_items
@@ -253,36 +245,32 @@ public interface ResourceMapper {
     EnumItemEntity enumItem(@Param("id") String id);
 
     default void insertEnum(String id, EnumItemRequest request) {
-        insertEnumRow(id, request.enumType(), request.name(), request.normalizedValue(), request.normalizedLabelZh(), request.normalizedLabelEn(), request.normalizedShortLabelZh(), request.normalizedShortLabelEn(), request.semantic(), request.normalizedActive(), request.normalizedSortOrder());
+        insertEnumRow(id, request.enumType(), request.name(), request.normalizedValue(), request.normalizedNameEn(), request.normalizedActive(), request.normalizedSortOrder());
     }
 
     @Insert("""
             insert into kpm_enum_items
-            (id, enum_type, name, value, label_zh, label_en, short_label_zh, short_label_en, semantic, active, sort_order)
+            (id, enum_type, name, value, label_en, active, sort_order)
             values
-            (#{id}, #{enumType}, #{name}, #{value}, #{labelZh}, #{labelEn}, #{shortLabelZh}, #{shortLabelEn}, #{semantic}, #{active}, #{sortOrder})
+            (#{id}, #{enumType}, #{name}, #{value}, #{nameEn}, #{active}, #{sortOrder})
             """)
-    void insertEnumRow(@Param("id") String id, @Param("enumType") String enumType, @Param("name") String name, @Param("value") String value, @Param("labelZh") String labelZh, @Param("labelEn") String labelEn, @Param("shortLabelZh") String shortLabelZh, @Param("shortLabelEn") String shortLabelEn, @Param("semantic") String semantic, @Param("active") Boolean active, @Param("sortOrder") Integer sortOrder);
+    void insertEnumRow(@Param("id") String id, @Param("enumType") String enumType, @Param("name") String name, @Param("value") String value, @Param("nameEn") String nameEn, @Param("active") Boolean active, @Param("sortOrder") Integer sortOrder);
 
     default void updateEnum(String id, EnumItemRequest request) {
-        updateEnumRow(id, request.name(), request.normalizedValue(), request.normalizedLabelZh(), request.normalizedLabelEn(), request.normalizedShortLabelZh(), request.normalizedShortLabelEn(), request.semantic(), request.normalizedActive(), request.normalizedSortOrder());
+        updateEnumRow(id, request.name(), request.normalizedValue(), request.normalizedNameEn(), request.normalizedActive(), request.normalizedSortOrder());
     }
 
     @Update("""
             update kpm_enum_items
             set name=#{name},
                 value=#{value},
-                label_zh=#{labelZh},
-                label_en=#{labelEn},
-                short_label_zh=#{shortLabelZh},
-                short_label_en=#{shortLabelEn},
-                semantic=#{semantic},
+                label_en=#{nameEn},
                 active=#{active},
                 sort_order=#{sortOrder},
                 update_time=current_timestamp
             where id=#{id} and del_flag=0
             """)
-    void updateEnumRow(@Param("id") String id, @Param("name") String name, @Param("value") String value, @Param("labelZh") String labelZh, @Param("labelEn") String labelEn, @Param("shortLabelZh") String shortLabelZh, @Param("shortLabelEn") String shortLabelEn, @Param("semantic") String semantic, @Param("active") Boolean active, @Param("sortOrder") Integer sortOrder);
+    void updateEnumRow(@Param("id") String id, @Param("name") String name, @Param("value") String value, @Param("nameEn") String nameEn, @Param("active") Boolean active, @Param("sortOrder") Integer sortOrder);
 
     @Update("update kpm_enum_items set del_flag=1, active=false, update_time=current_timestamp where id=#{id} and del_flag=0")
     void deleteEnum(@Param("id") String id);

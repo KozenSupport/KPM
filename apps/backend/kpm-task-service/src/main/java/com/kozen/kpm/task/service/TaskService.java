@@ -6,6 +6,7 @@ import com.kozen.kpm.task.dto.TaskCommentDto;
 import com.kozen.kpm.task.dto.TaskCommentRequest;
 import com.kozen.kpm.task.dto.TaskDto;
 import com.kozen.kpm.task.dto.TaskRequest;
+import com.kozen.kpm.task.dto.TaskUserStatsDto;
 
 import java.util.List;
 
@@ -19,6 +20,8 @@ public interface TaskService {
     List<TaskDto> list(String keyword, String status, String category);
     /** Query task list by page with keyword/status/category/customer/project filters in SQL. */
     PageResult<TaskDto> page(String keyword, String status, String category, String customerId, String projectId, String id, String userId, String assigneeScope, String relationScope, String statusScope, List<String> completedStatuses, Integer page, Integer pageSize);
+    /** Count task totals for the dashboard using the same user-scope rules as task list filters. */
+    TaskUserStatsDto userStats(String userId, List<String> completedStatuses);
     /** Load one task detail. */
     TaskDto detail(String id);
     /** Create one task. */

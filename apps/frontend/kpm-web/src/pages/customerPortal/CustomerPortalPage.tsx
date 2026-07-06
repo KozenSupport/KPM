@@ -141,23 +141,25 @@ function formatHours(value?: number) {
 
 function portalTaskCategoryLabel(task: CustomerPortalTask, language?: string) {
   return isEnglishLanguage(language)
-    ? task.categoryLabelEn || task.categoryLabelZh || task.category || ""
-    : task.categoryLabelZh || task.categoryLabelEn || task.category || "";
-}
-
-function portalTaskCategoryShortLabel(task: CustomerPortalTask, language?: string) {
-  return isEnglishLanguage(language)
-    ? task.categoryShortLabelEn || task.categoryShortLabelZh
-    : task.categoryShortLabelZh || task.categoryShortLabelEn;
+    ? task.categoryNameEn || task.categoryName || task.category || ""
+    : task.categoryName || task.categoryNameEn || task.category || "";
 }
 
 function portalCategoryStatsName(
-  item: { category?: string; labelZh?: string; labelEn?: string },
+  item: { category?: string; categoryName?: string; categoryNameEn?: string },
   language?: string,
 ) {
   return isEnglishLanguage(language)
-    ? item.labelEn || item.labelZh || item.category || "-"
-    : item.labelZh || item.labelEn || item.category || "-";
+    ? item.categoryNameEn || item.categoryName || item.category || "-"
+    : item.categoryName || item.categoryNameEn || item.category || "-";
+}
+
+function portalCommentAuthor(author?: string, fallback = "-") {
+  const cleaned = String(author || "").trim().replace(/^客户[:：]\s*/, "");
+  if (!cleaned) return fallback;
+  const match = cleaned.match(/^(.+?)<([^>]+)>$/);
+  if (!match) return cleaned;
+  return `${match[1].trim()} <${match[2].trim()}>`;
 }
 
 export function CustomerPortalPage() {
@@ -979,7 +981,6 @@ export function CustomerPortalPage() {
 	                        <TaskCategoryTag
 	                          value={task.category}
 	                          label={portalTaskCategoryLabel(task, i18n.language)}
-	                          shortLabel={portalTaskCategoryShortLabel(task, i18n.language)}
 	                        />
 	                      ),
 	                    },
@@ -1230,7 +1231,6 @@ export function CustomerPortalPage() {
 	                <TaskCategoryTag
 	                  value={activePortalTask.category}
 	                  label={portalTaskCategoryLabel(activePortalTask, i18n.language)}
-	                  shortLabel={portalTaskCategoryShortLabel(activePortalTask, i18n.language)}
 	                />
 	                <StatusTag value={activePortalTask.status} />
 	                {activePortalTask.priority ? (
@@ -1291,7 +1291,7 @@ export function CustomerPortalPage() {
                             title={
                               <Space wrap>
                                 <span>
-                                  {comment.author || t("portal.customerKozen")}
+                                  {portalCommentAuthor(comment.author, t("portal.customerKozen"))}
                                 </span>
                                 <small>{dateTimeText(comment.createdAt)}</small>
                               </Space>

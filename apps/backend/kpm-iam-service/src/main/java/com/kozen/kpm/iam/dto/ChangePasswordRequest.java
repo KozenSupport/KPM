@@ -18,9 +18,13 @@ public record ChangePasswordRequest(
 
         @NotBlank(message = "新密码不能为空")
         @Size(min = 6, max = 128, message = "新密码长度必须在6到128位之间")
-        String newPassword
+        String newPassword,
+
+        @Schema(description = "邮箱验证码。发送验证码时可不填，确认修改密码时必填。")
+        @Size(max = 16, message = "验证码不能超过16个字符")
+        String code
 ) {
     public ChangePasswordRequest withAccount(String nextAccount) {
-        return new ChangePasswordRequest(nextAccount, oldPassword, newPassword);
+        return new ChangePasswordRequest(nextAccount, oldPassword, newPassword, code);
     }
 }

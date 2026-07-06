@@ -100,12 +100,12 @@ export function MainLayout() {
             getPopupContainer={() => document.body}
             menu={{
               items: [
-                { key: 'change', label: t('nav.changePassword') },
+                { key: 'profile', label: t('nav.profileCenter') },
                 { key: 'logout', label: t('nav.logout') },
               ],
               onClick: ({ key }) => {
                 if (key === 'logout') logout();
-                if (key === 'change') message.info('修改密码入口已保留，后续在个人中心中完善。');
+                if (key === 'profile') navigate('/profile');
               },
             }}
           >

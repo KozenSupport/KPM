@@ -77,19 +77,8 @@ export function isEnglishLanguage(language?: string): boolean {
 
 export function enumDisplayLabel(item: EnumItem | undefined, language?: string): string {
   if (!item) return '';
-  if (isEnglishLanguage(language)) return item.labelEn || item.name || item.value || '';
-  return item.labelZh || item.name || item.value || '';
-}
-
-export function enumShortLabel(item: EnumItem | undefined, language?: string): string {
-  if (!item) return '';
-  if (isEnglishLanguage(language)) return item.shortLabelEn || firstChar(enumDisplayLabel(item, language)).toUpperCase();
-  return item.shortLabelZh || firstChar(enumDisplayLabel(item, language));
-}
-
-export function firstChar(value?: string | null): string {
-  const textValue = String(value || '').trim();
-  return Array.from(textValue)[0] || '';
+  if (isEnglishLanguage(language)) return item.nameEn || item.name || item.value || '';
+  return item.name || item.value || '';
 }
 
 export function parseJsonObject(value: unknown): AnyRecord {

@@ -62,10 +62,8 @@ public class CustomerPortalConverter {
                 entity.getProjectId(),
                 entity.getProjectName(),
                 entity.getCategory(),
-                entity.getCategoryLabelZh(),
-                entity.getCategoryLabelEn(),
-                entity.getCategoryShortLabelZh(),
-                entity.getCategoryShortLabelEn(),
+                entity.getCategoryName(),
+                entity.getCategoryNameEn(),
                 entity.getStatus(),
                 entity.getPriority(),
                 entity.getCreator(),
@@ -141,10 +139,8 @@ public class CustomerPortalConverter {
     private CustomerPortalTaskCategoryStatsDto toTaskCategoryStatsDto(CustomerPortalTaskCategoryStatsEntity entity) {
         return new CustomerPortalTaskCategoryStatsDto(
                 entity.getCategory(),
-                entity.getLabelZh(),
-                entity.getLabelEn(),
-                entity.getShortLabelZh(),
-                entity.getShortLabelEn(),
+                entity.getCategoryName(),
+                entity.getCategoryNameEn(),
                 value(entity.getTotalTasks())
         );
     }

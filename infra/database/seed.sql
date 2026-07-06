@@ -119,34 +119,20 @@ INSERT INTO kpm_permissions (id, code, name, permission_type, target, location) 
 INSERT INTO kpm_role_permissions (role_id, permission_id)
 SELECT 2001, id FROM kpm_permissions;
 
-INSERT INTO kpm_enum_items (id, enum_type, name, value, semantic, active, sort_order) VALUES
-(5004,'stage_status','未开始','未开始','DEFAULT',true,10),(5005,'stage_status','进行中','进行中','ACTIVE',true,20),(5006,'stage_status','已完成','已完成','COMPLETED',true,30),
-(5012,'customer_master_status','潜在客户','潜在客户','DEFAULT',true,10),(5013,'customer_master_status','合作中','合作中',NULL,true,20),(5014,'customer_master_status','已停用','已停用',NULL,true,30),
-(5015,'customer_project_status','商机发掘','商机发掘','DEFAULT',true,10),(5016,'customer_project_status','样机测试','样机测试',NULL,true,20),(5017,'customer_project_status','研发投入','研发投入',NULL,true,30),(5018,'customer_project_status','订单冲刺','订单冲刺',NULL,true,40),(5019,'customer_project_status','首单护航','首单护航',NULL,true,50),(5020,'customer_project_status','量产维护','量产维护',NULL,true,60),(5021,'customer_project_status','EOL 声明','EOL 声明',NULL,true,70),(5022,'customer_project_status','EOL','EOL',NULL,true,80),(5023,'customer_project_status','Support Ended','Support Ended',NULL,true,90),
-(5024,'customer_level','A / 战略客户','A / 战略客户',NULL,true,10),(5025,'customer_level','B / 重点客户','B / 重点客户',NULL,true,20),(5026,'customer_level','C / 普通客户','C / 普通客户','DEFAULT',true,30),(5027,'customer_level','D / 观察客户','D / 观察客户',NULL,true,40),(5028,'customer_level','黑名单 / 暂停合作','黑名单 / 暂停合作',NULL,true,50),
-(5029,'order_type','样品订单','样品订单','样机测试',true,10),(5030,'order_type','预订单','预订单','商机发掘',true,20),(5031,'order_type','正式订单','正式订单','订单冲刺',true,30),
-(5032,'order_status','已创建','已创建','DEFAULT',true,10),(5033,'order_status','生产中','生产中','IN_PRODUCTION',true,20),(5034,'order_status','已发货','已发货','SHIPPED',true,30),(5035,'order_status','已收货','已收货','RECEIVED',true,40),(5036,'order_status','已完成','已完成','COMPLETED',true,50),
-(5037,'task_category','需求','需求','REQUIREMENT',true,10),(5038,'task_category','Bug','Bug',NULL,true,20),(5039,'task_category','技术支持','技术支持',NULL,true,30),(5040,'task_category','其他','其他',NULL,true,40),
-(5041,'task_status','待处理','待处理','DEFAULT',true,10),(5042,'task_status','进行中','进行中','普通',true,20),(5043,'task_status','已完成','已完成','完成',true,30),(5044,'task_status','已拒绝','已拒绝','拒绝',true,40),
-(5045,'priority','高','高',NULL,true,10),(5046,'priority','中','中','DEFAULT',true,20),(5047,'priority','低','低',NULL,true,30),
-(5057,'task_priority','高','高',NULL,true,10),(5058,'task_priority','中','中','DEFAULT',true,20),(5059,'task_priority','低','低',NULL,true,30),
-(5048,'requirement_status','待评估','待评估','DEFAULT',true,10),(5049,'requirement_status','已采纳','已采纳',NULL,true,20),(5050,'requirement_status','实现中','实现中',NULL,true,30),(5051,'requirement_status','已实现','已实现','完成',true,40),(5052,'requirement_status','已拒绝','已拒绝','拒绝',true,50),(5053,'requirement_status','已作废','已作废','VOID',true,60),
-(5054,'currency','USD','USD',NULL,true,10),(5055,'currency','EUR','EUR',NULL,true,20),(5056,'currency','CNY','CNY',NULL,true,30),
-(5060,'project_announcement_type','普通公告','普通公告','DEFAULT',true,10),(5061,'project_announcement_type','产品 EOL 公告','产品EOL公告','EOL',true,20);
-
-UPDATE kpm_enum_items
-SET label_zh = COALESCE(label_zh, name),
-    label_en = COALESCE(label_en, name),
-    short_label_zh = COALESCE(short_label_zh, LEFT(name, 1)),
-    short_label_en = COALESCE(short_label_en, LEFT(value, 1));
-
-UPDATE kpm_enum_items SET label_zh='需求', label_en='Requirement', short_label_zh='需', short_label_en='R' WHERE enum_type='task_category' AND value='需求';
-UPDATE kpm_enum_items SET label_zh='Bug', label_en='Bug', short_label_zh='B', short_label_en='B' WHERE enum_type='task_category' AND value='Bug';
-UPDATE kpm_enum_items SET label_zh='技术支持', label_en='Support', short_label_zh='支', short_label_en='S' WHERE enum_type='task_category' AND value='技术支持';
-UPDATE kpm_enum_items SET label_zh='其他', label_en='Other', short_label_zh='其', short_label_en='O' WHERE enum_type='task_category' AND value='其他';
-UPDATE kpm_enum_items SET label_zh='高', label_en='High', short_label_zh='高', short_label_en='H' WHERE enum_type IN ('task_priority','priority') AND value='高';
-UPDATE kpm_enum_items SET label_zh='中', label_en='Medium', short_label_zh='中', short_label_en='M' WHERE enum_type IN ('task_priority','priority') AND value='中';
-UPDATE kpm_enum_items SET label_zh='低', label_en='Low', short_label_zh='低', short_label_en='L' WHERE enum_type IN ('task_priority','priority') AND value='低';
+INSERT INTO kpm_enum_items (id, enum_type, name, value, label_en, active, sort_order) VALUES
+(5004,'stage_status','未开始','未开始','Not Started',true,10),(5005,'stage_status','进行中','进行中','In Progress',true,20),(5006,'stage_status','已完成','已完成','Completed',true,30),
+(5012,'customer_master_status','潜在客户','潜在客户','Prospect',true,10),(5013,'customer_master_status','合作中','合作中','Active',true,20),(5014,'customer_master_status','已停用','已停用','Inactive',true,30),
+(5015,'customer_project_status','商机发掘','商机发掘','Opportunity Discovery',true,10),(5016,'customer_project_status','样机测试','样机测试','Sample Testing',true,20),(5017,'customer_project_status','研发投入','研发投入','R&D Investment',true,30),(5018,'customer_project_status','订单冲刺','订单冲刺','Order Sprint',true,40),(5019,'customer_project_status','首单护航','首单护航','First Order Support',true,50),(5020,'customer_project_status','量产维护','量产维护','Mass Production Support',true,60),(5021,'customer_project_status','EOL 声明','EOL 声明','EOL Notice',true,70),(5022,'customer_project_status','EOL','EOL','EOL',true,80),(5023,'customer_project_status','Support Ended','Support Ended','Support Ended',true,90),
+(5024,'customer_level','A / 战略客户','A / 战略客户','A / Strategic Customer',true,10),(5025,'customer_level','B / 重点客户','B / 重点客户','B / Key Customer',true,20),(5026,'customer_level','C / 普通客户','C / 普通客户','C / Standard Customer',true,30),(5027,'customer_level','D / 观察客户','D / 观察客户','D / Watchlist Customer',true,40),(5028,'customer_level','黑名单 / 暂停合作','黑名单 / 暂停合作','Blacklisted / Suspended',true,50),
+(5029,'order_type','样品订单','样品订单','Sample Order',true,10),(5030,'order_type','预订单','预订单','Pre-order',true,20),(5031,'order_type','正式订单','正式订单','Formal Order',true,30),
+(5032,'order_status','已创建','已创建','Created',true,10),(5033,'order_status','生产中','生产中','In Production',true,20),(5034,'order_status','已发货','已发货','Shipped',true,30),(5035,'order_status','已收货','已收货','Received',true,40),(5036,'order_status','已完成','已完成','Completed',true,50),
+(5037,'task_category','需求','需求','Requirement',true,10),(5038,'task_category','Bug','Bug','Bug',true,20),(5039,'task_category','技术支持','技术支持','Support',true,30),(5040,'task_category','其他','其他','Other',true,40),
+(5041,'task_status','待处理','待处理','Pending',true,10),(5042,'task_status','进行中','进行中','In Progress',true,20),(5043,'task_status','已完成','已完成','Completed',true,30),(5044,'task_status','已拒绝','已拒绝','Rejected',true,40),
+(5045,'priority','高','高','High',true,10),(5046,'priority','中','中','Medium',true,20),(5047,'priority','低','低','Low',true,30),
+(5057,'task_priority','高','高','High',true,10),(5058,'task_priority','中','中','Medium',true,20),(5059,'task_priority','低','低','Low',true,30),
+(5048,'requirement_status','待评估','待评估','Pending Review',true,10),(5049,'requirement_status','已采纳','已采纳','Accepted',true,20),(5050,'requirement_status','实现中','实现中','Implementing',true,30),(5051,'requirement_status','已实现','已实现','Implemented',true,40),(5052,'requirement_status','已拒绝','已拒绝','Rejected',true,50),(5053,'requirement_status','已作废','已作废','Voided',true,60),
+(5054,'currency','USD','USD','USD',true,10),(5055,'currency','EUR','EUR','EUR',true,20),(5056,'currency','CNY','CNY','CNY',true,30),
+(5060,'project_announcement_type','普通公告','普通公告','General Notice',true,10),(5061,'project_announcement_type','产品 EOL 公告','产品EOL公告','Product EOL Notice',true,20);
 
 INSERT INTO kpm_task_status_transitions (id, from_status, to_status) VALUES
 (7001,'待处理','进行中'),(7002,'待处理','已拒绝'),(7003,'进行中','已完成'),(7004,'进行中','已拒绝'),(7005,'已拒绝','进行中');

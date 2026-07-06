@@ -51,26 +51,11 @@ public interface OrderMapper {
     List<UserLookupEntity> usersByAccountOrName(@Param("value") Object value);
 
     @Select("""
-            select semantic from kpm_enum_items
-            where enum_type='order_type' and value=#{orderType} and active=true
-            limit 1
-            """)
-    String customerProjectStatusByOrderType(@Param("orderType") String orderType);
-
-    @Select("""
             select value from kpm_enum_items
-            where enum_type=#{enumType} and active=true
-            order by case when semantic='DEFAULT' then 0 else 1 end, sort_order, id
-            limit 1
-            """)
-    String defaultEnumValue(@Param("enumType") String enumType);
-
-    @Select("""
-            select semantic from kpm_enum_items
             where enum_type=#{enumType} and value=#{value} and active=true
             limit 1
             """)
-    String enumSemantic(@Param("enumType") String enumType, @Param("value") String value);
+    String enumExactValue(@Param("enumType") String enumType, @Param("value") String value);
 
     @Select("""
             select id,
