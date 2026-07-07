@@ -6,7 +6,7 @@ COMPOSE_FILE="$ROOT_DIR/infra/docker-compose/dev/docker-compose.yml"
 ENV_FILE="$ROOT_DIR/.env"
 
 if [[ ! -f "$ENV_FILE" ]]; then
-  echo "Missing $ENV_FILE. Copy infra/env/.env.example to .env and fill required values first." >&2
+  echo "Missing $ENV_FILE. Copy .env.example to .env and fill required values first." >&2
   exit 1
 fi
 

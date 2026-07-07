@@ -1,0 +1,19 @@
+FROM eclipse-temurin:21-jre-alpine
+
+ARG SERVICE_NAME
+ARG SERVICE_VERSION=0.1.0-SNAPSHOT
+
+LABEL org.opencontainers.image.title="Kozen KPM backend service" \
+      org.opencontainers.image.description="Runtime image for a KPM Spring Boot microservice"
+
+RUN addgroup -S kpm && adduser -S kpm -G kpm
+WORKDIR /app
+
+COPY ${SERVICE_NAME}/target/${SERVICE_NAME}-${SERVICE_VERSION}.jar /app/app.jar
+COPY docker/entrypoint.sh /entrypoint.sh
+
+RUN chmod 755 /entrypoint.sh && chown -R kpm:kpm /app
+USER kpm
+
+EXPOSE 8080 8101 8102 8103 8104 8105 8106 8107 8108 8109 8110
+ENTRYPOINT ["/entrypoint.sh"]
