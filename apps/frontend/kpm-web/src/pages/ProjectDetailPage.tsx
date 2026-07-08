@@ -38,6 +38,7 @@ import { PageScaffold } from "../components/PageScaffold";
 import { StatusTag } from "../components/StatusTag";
 import { useAuth } from "../context/AuthContext";
 import { useKpmData, useRefreshKpmData } from "../hooks/useKpmData";
+import { useActionLock } from "../hooks/useActionLock";
 import { confirmSubmit } from "../hooks/useConfirmingForm";
 import { kpmApi } from "../services/kpmApi";
 import type { AnyRecord, ProjectSku, ProjectStage } from "../types";
@@ -148,6 +149,7 @@ export function ProjectDetailPage() {
   const backTo =
     (location.state as { from?: string } | null)?.from || "/projects";
   const operatorName = user?.name || user?.account || "当前用户";
+  const { isLocked, runLocked } = useActionLock();
   const taskDefaults = useMemo(
     () => ({
       category: enumValues(data?.bootstrap?.enumItems || [], "task_category", [
@@ -310,77 +312,83 @@ export function ProjectDetailPage() {
 
   async function submitStageMaterial() {
     if (!activeStage) return;
-    const values = await stageMaterialForm.validateFields();
-    const files = normalizeUploadFiles(values.files);
-    if (!files.length) {
-      message.warning("请选择要上传的阶段资料");
-      return;
-    }
-    const materials = await uploadBusinessFiles(
-      files,
-      "project-stage-materials",
-      activeStage.id,
-      operatorName,
-    );
-    await Promise.all(
-      materials.map((material) =>
-        kpmApi.addStageMaterial(activeStage.id, material),
-      ),
-    );
-    message.success("阶段资料已上传");
-    setStageMaterialModal(false);
-    stageMaterialForm.resetFields();
-    refreshProjectDetail();
+    await runLocked("stage-material-upload", async () => {
+      const values = await stageMaterialForm.validateFields();
+      const files = normalizeUploadFiles(values.files);
+      if (!files.length) {
+        message.warning("请选择要上传的阶段资料");
+        return;
+      }
+      const materials = await uploadBusinessFiles(
+        files,
+        "project-stage-materials",
+        activeStage.id,
+        operatorName,
+      );
+      await Promise.all(
+        materials.map((material) =>
+          kpmApi.addStageMaterial(activeStage.id, material),
+        ),
+      );
+      message.success("阶段资料已上传");
+      setStageMaterialModal(false);
+      stageMaterialForm.resetFields();
+      refreshProjectDetail();
+    });
   }
 
   async function submitProjectMaterial() {
-    const values = await projectMaterialForm.validateFields();
-    const files = normalizeUploadFiles(values.files);
-    if (!files.length) {
-      message.warning("请选择要上传的项目资料");
-      return;
-    }
-    const materials = await uploadBusinessFiles(
-      files,
-      "project-materials",
-      id,
-      operatorName,
-    );
-    await Promise.all(
-      materials.map((material) =>
-        kpmApi.addProjectMaterial(id, {
-          ...material,
-          description: values.description,
-        }),
-      ),
-    );
-    message.success("项目资料已上传");
-    setProjectMaterialModal(false);
-    projectMaterialForm.resetFields();
-    refreshProjectDetail();
+    await runLocked("project-material-upload", async () => {
+      const values = await projectMaterialForm.validateFields();
+      const files = normalizeUploadFiles(values.files);
+      if (!files.length) {
+        message.warning("请选择要上传的项目资料");
+        return;
+      }
+      const materials = await uploadBusinessFiles(
+        files,
+        "project-materials",
+        id,
+        operatorName,
+      );
+      await Promise.all(
+        materials.map((material) =>
+          kpmApi.addProjectMaterial(id, {
+            ...material,
+            description: values.description,
+          }),
+        ),
+      );
+      message.success("项目资料已上传");
+      setProjectMaterialModal(false);
+      projectMaterialForm.resetFields();
+      refreshProjectDetail();
+    });
   }
 
   async function submitStageRecord() {
     if (!activeStage) return;
-    const values = await stageRecordForm.validateFields();
-    const files = normalizeUploadFiles(values.files);
-    const attachments = files.length
-      ? await uploadBusinessFiles(
-          files,
-          "stage-record-attachments",
-          activeStage.id,
-          operatorName,
-        )
-      : [];
-    await kpmApi.addStageRecord(activeStage.id, {
-      author: operatorName,
-      content: values.content,
-      attachments,
+    await runLocked("stage-record-submit", async () => {
+      const values = await stageRecordForm.validateFields();
+      const files = normalizeUploadFiles(values.files);
+      const attachments = files.length
+        ? await uploadBusinessFiles(
+            files,
+            "stage-record-attachments",
+            activeStage.id,
+            operatorName,
+          )
+        : [];
+      await kpmApi.addStageRecord(activeStage.id, {
+        author: operatorName,
+        content: values.content,
+        attachments,
+      });
+      message.success("阶段记录已发布");
+      setStageRecordModal(false);
+      stageRecordForm.resetFields();
+      refreshProjectDetail();
     });
-    message.success("阶段记录已发布");
-    setStageRecordModal(false);
-    stageRecordForm.resetFields();
-    refreshProjectDetail();
   }
 
   async function publishStageMaterial(material: AnyRecord) {
@@ -417,9 +425,24 @@ export function ProjectDetailPage() {
     confirmSubmit(
       "确认从项目资料中删除该文件记录？删除后客户门户也将不再展示该资料。",
       async () => {
-        await kpmApi.deleteProjectMaterial(id, material.id);
-        message.success("项目资料已删除");
-        refreshProjectDetail();
+        await runLocked(`project-material-delete:${material.id}`, async () => {
+          await kpmApi.deleteProjectMaterial(id, material.id);
+          message.success("项目资料已删除");
+          refreshProjectDetail();
+        });
+      },
+    );
+  }
+
+  async function deleteStageMaterial(material: AnyRecord) {
+    confirmSubmit(
+      "确认从阶段资料库中删除该文件记录？如果该资料已发布到项目资料区，项目资料区副本不会被自动删除。",
+      async () => {
+        await runLocked(`stage-material-delete:${material.id}`, async () => {
+          await kpmApi.deleteStageMaterial(material.id);
+          message.success("阶段资料已删除");
+          refreshProjectDetail();
+        });
       },
     );
   }
@@ -452,31 +475,33 @@ export function ProjectDetailPage() {
 
   async function submitStageTask() {
     if (!activeStage) return;
-    const values = await stageTaskForm.validateFields();
-    const files = normalizeUploadFiles(values.files);
-    const { files: _files, ...payload } = values;
-    const task = await kpmApi.createTask({
-      ...payload,
-      projectId: id,
-      stageId: activeStage.id,
-      creator: operatorName,
-      source: "阶段详情",
-    });
-    if (files.length) {
-      const materials = await uploadBusinessFiles(
-        files,
-        "task-attachments",
-        task.id,
-        operatorName,
-      );
-      for (const material of materials) {
-        await kpmApi.addTaskAttachment(task.id, material);
+    await runLocked("stage-task-submit", async () => {
+      const values = await stageTaskForm.validateFields();
+      const files = normalizeUploadFiles(values.files);
+      const { files: _files, ...payload } = values;
+      const task = await kpmApi.createTask({
+        ...payload,
+        projectId: id,
+        stageId: activeStage.id,
+        creator: operatorName,
+        source: "阶段详情",
+      });
+      if (files.length) {
+        const materials = await uploadBusinessFiles(
+          files,
+          "task-attachments",
+          task.id,
+          operatorName,
+        );
+        for (const material of materials) {
+          await kpmApi.addTaskAttachment(task.id, material);
+        }
       }
-    }
-    message.success("阶段任务已创建");
-    setStageTaskModal(false);
-    stageTaskForm.resetFields();
-    refreshProjectDetail();
+      message.success("阶段任务已创建");
+      setStageTaskModal(false);
+      stageTaskForm.resetFields();
+      refreshProjectDetail();
+    });
   }
 
   function openAnnouncementModal() {
@@ -964,6 +989,7 @@ export function ProjectDetailPage() {
                                   <Button
                                     size="small"
                                     danger
+                                    loading={isLocked(`project-material-delete:${row.id}`)}
                                     onClick={() => deleteProjectMaterial(row)}
                                   >
                                     删除
@@ -1144,6 +1170,14 @@ export function ProjectDetailPage() {
                                 {row.publishedToProject
                                   ? "已发布"
                                   : "发布到项目资料区"}
+                              </Button>
+                              <Button
+                                size="small"
+                                danger
+                                loading={isLocked(`stage-material-delete:${row.id}`)}
+                                onClick={() => deleteStageMaterial(row)}
+                              >
+                                删除
                               </Button>
                             </Space>
                           ),
@@ -1504,6 +1538,7 @@ export function ProjectDetailPage() {
               onCancel={() => setStageMaterialModal(false)}
               onOk={submitStageMaterial}
               okText="上传"
+              confirmLoading={isLocked("stage-material-upload")}
             >
               <Form form={stageMaterialForm} layout="vertical">
                 <Form.Item
@@ -1526,6 +1561,7 @@ export function ProjectDetailPage() {
               onCancel={() => setProjectMaterialModal(false)}
               onOk={submitProjectMaterial}
               okText="上传"
+              confirmLoading={isLocked("project-material-upload")}
             >
               <Form form={projectMaterialForm} layout="vertical">
                 <Form.Item
@@ -1558,6 +1594,7 @@ export function ProjectDetailPage() {
               onCancel={() => setStageRecordModal(false)}
               onOk={submitStageRecord}
               okText="发布"
+              confirmLoading={isLocked("stage-record-submit")}
             >
               <Form form={stageRecordForm} layout="vertical">
                 <Form.Item
@@ -1615,6 +1652,7 @@ export function ProjectDetailPage() {
               maskClosable
               onCancel={() => setStageTaskModal(false)}
               onOk={submitStageTask}
+              confirmLoading={isLocked("stage-task-submit")}
               width={720}
             >
               <Form form={stageTaskForm} layout="vertical">

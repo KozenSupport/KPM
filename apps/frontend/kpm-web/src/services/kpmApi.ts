@@ -78,6 +78,8 @@ export const kpmApi = {
       `/api/projects/stage-materials/${materialId}/publish`,
       {},
     ),
+  deleteStageMaterial: (materialId: string) =>
+    api.delete<AnyRecord>(`/api/projects/stage-materials/${materialId}`),
   addProjectMaterial: (projectId: string, body: AnyRecord) =>
     api.post<Project>(`/api/projects/${projectId}/materials`, body),
   publishProjectMaterialToCustomer: (projectId: string, materialId: string) =>
@@ -147,10 +149,16 @@ export const kpmApi = {
   deleteCustomer: (id: string) => api.delete<boolean>(`/api/customers/${id}`),
   addCustomerContact: (id: string, body: AnyRecord) =>
     api.post<AnyRecord>(`/api/customers/${id}/contacts`, body),
+  updateCustomerContact: (id: string, contactId: string, body: AnyRecord) =>
+    api.put<AnyRecord>(`/api/customers/${id}/contacts/${contactId}`, body),
+  deleteCustomerContact: (id: string, contactId: string) =>
+    api.delete<AnyRecord>(`/api/customers/${id}/contacts/${contactId}`),
   addCustomerFollowup: (id: string, body: AnyRecord) =>
     api.post<AnyRecord>(`/api/customers/${id}/followups`, body),
   addCustomerMaterial: (id: string, body: AnyRecord) =>
     api.post<AnyRecord>(`/api/customers/${id}/materials`, body),
+  deleteCustomerMaterial: (id: string, materialId: string) =>
+    api.delete<AnyRecord>(`/api/customers/${id}/materials/${materialId}`),
   sendCustomerNotification: (id: string, body: AnyRecord) =>
     api.post<AnyRecord>(`/api/customers/${id}/notifications`, body),
 

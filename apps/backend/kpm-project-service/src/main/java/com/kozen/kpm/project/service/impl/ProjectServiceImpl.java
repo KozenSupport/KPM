@@ -258,6 +258,20 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional
+    public ProjectDto deleteStageMaterial(String materialId, String operator) {
+        ProjectFileEntity material = projectMapper.stageMaterialForPublish(materialId);
+        if (material == null) {
+            throw new IllegalArgumentException("阶段资料不存在或已删除");
+        }
+        int updated = projectMapper.deleteStageMaterial(materialId, resolveOperator(operator));
+        if (updated == 0) {
+            throw new IllegalArgumentException("阶段资料不存在或已删除");
+        }
+        return detail(material.getProjectId());
+    }
+
+    @Override
+    @Transactional
     public ProjectDto publishProjectMaterialToCustomer(String projectId, String materialId) {
         ensureProjectExists(projectId);
         int updated = projectMapper.markProjectMaterialPublic(projectId, materialId, "customer-visible");

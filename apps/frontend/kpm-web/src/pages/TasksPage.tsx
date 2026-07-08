@@ -16,6 +16,7 @@ import { PageScaffold } from '../components/PageScaffold';
 import { StatusTag } from '../components/StatusTag';
 import { useAuth } from '../context/AuthContext';
 import { useKpmData, useRefreshKpmData } from '../hooks/useKpmData';
+import { useActionLock } from '../hooks/useActionLock';
 import { confirmSubmit } from '../hooks/useConfirmingForm';
 import { kpmApi } from '../services/kpmApi';
 import type { AnyRecord, Task } from '../types';
@@ -60,6 +61,7 @@ export function TasksPage() {
   const [filters, setFilters] = useState({ keyword: '', status: undefined as string | undefined, category: undefined as string | undefined, customerId: searchParams.get('customerId') || undefined, projectId: searchParams.get('projectId') || undefined });
   const [pagination, setPagination] = useState({ current: 1, pageSize: 12 });
   const operatorName = user?.name || user?.account || '当前用户';
+  const { isLocked, runLocked } = useActionLock();
   const taskDefaults = useMemo(() => ({
     category: enumValues(data?.bootstrap?.enumItems || [], 'task_category', ['需求'])[0],
     status: enumValues(data?.bootstrap?.enumItems || [], 'task_status', ['待处理'])[0],
@@ -178,61 +180,69 @@ export function TasksPage() {
     const files = normalizeUploadFiles(values.files);
     const { files: _files, ...payload } = values;
     confirmSubmit(editing ? '确认修改任务？' : '确认新增任务？', async () => {
-      let saved: Task;
-      if (editing) {
-        saved = await kpmApi.updateTask(editing.id, payload);
-      } else {
-        saved = await kpmApi.createTask(payload);
-      }
-      const updated = await attachTaskFiles(saved.id, files);
-      if (editing) setDetail(updated || saved);
-      message.success(editing ? '任务已更新' : '任务已创建');
-      setModalOpen(false);
-      form.resetFields();
-      refreshTaskPage();
+      await runLocked('task-save', async () => {
+        let saved: Task;
+        if (editing) {
+          saved = await kpmApi.updateTask(editing.id, payload);
+        } else {
+          saved = await kpmApi.createTask(payload);
+        }
+        const updated = await attachTaskFiles(saved.id, files);
+        if (editing) setDetail(updated || saved);
+        message.success(editing ? '任务已更新' : '任务已创建');
+        setModalOpen(false);
+        form.resetFields();
+        refreshTaskPage();
+      });
     });
   }
 
   async function addComment() {
     if (!activeDetail) return;
-    const values = await commentForm.validateFields();
-    if (values.commentType === 'external' && !activeDetail.customerId) {
-      message.warning('外部留言必须是关联具体客户的任务');
-      return;
-    }
-    const files = normalizeUploadFiles(values.files);
-    const attachments = files.length ? await uploadBusinessFiles(files, 'task-comment-attachments', activeDetail.id, operatorName) : [];
-    const updated = await kpmApi.addTaskComment(activeDetail.id, { content: values.content, commentType: values.commentType || 'internal', author: operatorName, attachments });
-    setDetail(updated);
-    message.success('评论已发布');
-    commentForm.resetFields();
-    await queryClient.invalidateQueries({ queryKey: taskCommentsKey(activeDetail.id) });
-    refreshTaskPage();
+    await runLocked('task-comment-submit', async () => {
+      const values = await commentForm.validateFields();
+      if (values.commentType === 'external' && !activeDetail.customerId) {
+        message.warning('外部留言必须是关联具体客户的任务');
+        return;
+      }
+      const files = normalizeUploadFiles(values.files);
+      const attachments = files.length ? await uploadBusinessFiles(files, 'task-comment-attachments', activeDetail.id, operatorName) : [];
+      const updated = await kpmApi.addTaskComment(activeDetail.id, { content: values.content, commentType: values.commentType || 'internal', author: operatorName, attachments });
+      setDetail(updated);
+      message.success('评论已发布');
+      commentForm.resetFields();
+      await queryClient.invalidateQueries({ queryKey: taskCommentsKey(activeDetail.id) });
+      refreshTaskPage();
+    });
   }
 
   async function addExistingTaskAttachments() {
     if (!activeDetail) return;
-    const values = await attachmentForm.validateFields();
-    const files = normalizeUploadFiles(values.files);
-    if (!files.length) {
-      message.warning('请选择要上传的附件');
-      return;
-    }
-    const updated = await attachTaskFiles(activeDetail.id, files);
-    if (updated) setDetail(updated);
-    message.success('附件已上传');
-    setAttachmentModalOpen(false);
-    attachmentForm.resetFields();
-    refreshTaskPage();
+    await runLocked('task-attachment-upload', async () => {
+      const values = await attachmentForm.validateFields();
+      const files = normalizeUploadFiles(values.files);
+      if (!files.length) {
+        message.warning('请选择要上传的附件');
+        return;
+      }
+      const updated = await attachTaskFiles(activeDetail.id, files);
+      if (updated) setDetail(updated);
+      message.success('附件已上传');
+      setAttachmentModalOpen(false);
+      attachmentForm.resetFields();
+      refreshTaskPage();
+    });
   }
 
   function deleteTaskAttachment(file: AnyRecord) {
     if (!activeDetail) return;
     confirmSubmit('确认删除该附件？', async () => {
-      const updated = await kpmApi.deleteTaskAttachment(activeDetail.id, file.id);
-      setDetail(updated);
-      message.success('附件已删除');
-      refreshTaskPage();
+      await runLocked(`task-attachment-delete:${file.id}`, async () => {
+        const updated = await kpmApi.deleteTaskAttachment(activeDetail.id, file.id);
+        setDetail(updated);
+        message.success('附件已删除');
+        refreshTaskPage();
+      });
     });
   }
 
@@ -279,7 +289,7 @@ export function TasksPage() {
             ]}
           />
         </Card>
-        <Modal title={editing ? '编辑任务' : '新增任务'} open={modalOpen} maskClosable onCancel={() => setModalOpen(false)} onOk={submitTask} width={760}>
+        <Modal title={editing ? '编辑任务' : '新增任务'} open={modalOpen} maskClosable onCancel={() => setModalOpen(false)} onOk={submitTask} confirmLoading={isLocked('task-save')} width={760}>
           <Form form={form} layout="vertical" requiredMark={false}>
             <Form.Item name="title" label="任务标题" rules={[validationRules.required('请输入任务标题'), validationRules.max(120)]}><Input /></Form.Item>
             <Form.Item name="description" label="任务描述" rules={[validationRules.max(3000)]}><Input.TextArea rows={4} /></Form.Item>
@@ -322,7 +332,7 @@ export function TasksPage() {
                 { title: '文件', dataIndex: 'fileName', ellipsis: true },
                 { title: '上传人', dataIndex: 'uploader', width: 110 },
                 { title: '上传时间', dataIndex: 'uploadedAt', width: 150, render: dateTimeText },
-                { title: '操作', width: 120, render: (_, row: AnyRecord) => <Space><Button size="small" onClick={() => downloadBusinessFile(row).catch((err) => message.error(err.message || '下载失败'))}>下载</Button><Button size="small" danger onClick={() => deleteTaskAttachment(row)}>删除</Button></Space> },
+                { title: '操作', width: 120, render: (_, row: AnyRecord) => <Space><Button size="small" onClick={() => downloadBusinessFile(row).catch((err) => message.error(err.message || '下载失败'))}>下载</Button><Button size="small" danger loading={isLocked(`task-attachment-delete:${row.id}`)} onClick={() => deleteTaskAttachment(row)}>删除</Button></Space> },
               ]} />
             </Card>
             <Card size="small" title="评论 / 留言">
@@ -347,13 +357,13 @@ export function TasksPage() {
                       <Button icon={<UploadOutlined />}>选择附件</Button>
                     </Upload>
                   </Form.Item>
-                  <Button onClick={addComment}>发布评论</Button>
+                  <Button loading={isLocked('task-comment-submit')} onClick={addComment}>发布评论</Button>
                 </Form>
               </Space>
             </Card>
           </Space> : null}
         </Drawer>
-        <Modal title="添加任务附件" open={attachmentModalOpen} maskClosable onCancel={() => setAttachmentModalOpen(false)} onOk={addExistingTaskAttachments} okText="上传">
+        <Modal title="添加任务附件" open={attachmentModalOpen} maskClosable onCancel={() => setAttachmentModalOpen(false)} onOk={addExistingTaskAttachments} okText="上传" confirmLoading={isLocked('task-attachment-upload')}>
           <Form form={attachmentForm} layout="vertical">
             <Form.Item name="files" label="选择附件" valuePropName="fileList" getValueFromEvent={uploadFileList} rules={[validationRules.required('请选择附件')]}>
               <Upload multiple beforeUpload={beforeUpload}>

@@ -192,6 +192,13 @@ public class ProjectApiController {
         return ApiResponse.ok(projectService.publishStageMaterial(materialId));
     }
 
+    @DeleteMapping("/stage-materials/{materialId}")
+    @Operation(summary = "删除阶段资料", description = "逻辑删除阶段资料库中的文件记录；已发布到项目资料区的副本不受影响。")
+    public ApiResponse<ProjectDto> deleteStageMaterial(@PathVariable String materialId,
+                                                       @RequestHeader(value = "X-KPM-Account", required = false) String operator) {
+        return ApiResponse.ok(projectService.deleteStageMaterial(materialId, operator));
+    }
+
     @PostMapping("/{id}/announcements")
     @Operation(summary = "发布项目公告", description = "向项目关联客户发布公告；客户门户顶部滚动展示，并同步进入客户消息盒子。")
     public ApiResponse<ProjectDto> publishAnnouncement(@PathVariable String id,

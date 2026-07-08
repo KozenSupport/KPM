@@ -342,6 +342,9 @@ public interface ProjectMapper {
     @Update("update kpm_stage_materials set published_to_project=true, update_time=current_timestamp where id=#{materialId} and del_flag=0")
     void markStageMaterialPublished(@Param("materialId") String materialId);
 
+    @Update("update kpm_stage_materials set del_flag=1, updator=#{operator}, update_time=current_timestamp where id=#{materialId} and del_flag=0")
+    int deleteStageMaterial(@Param("materialId") String materialId, @Param("operator") String operator);
+
     @Insert("""
             insert into kpm_project_materials
             (id, project_id, source_stage, file_name, file_type, file_size, description, uploader, bucket, object_key, storage_url, storage_category, share_target, public_visible)

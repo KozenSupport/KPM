@@ -38,6 +38,9 @@ public interface CustomerService {
     /** Add one contact to the customer. */
     CustomerDto addContact(String id, CustomerContactRequest request);
 
+    /** Update one contact of the customer. */
+    CustomerDto updateContact(String id, String contactId, CustomerContactRequest request);
+
     /** Delete one contact from the customer. */
     CustomerDto deleteContact(String id, String contactId);
 
@@ -46,6 +49,9 @@ public interface CustomerService {
 
     /** Add one uploaded material metadata record to the customer. */
     CustomerDto addMaterial(String id, FileMetadataRequest request);
+
+    /** Logically delete one customer material metadata record. */
+    CustomerDto deleteMaterial(String id, String materialId);
 
     /** Send a customer-level notification to all customer contacts with email. */
     CustomerNotificationResultDto sendNotification(String id, CustomerNotificationRequest request, String publisher);

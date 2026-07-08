@@ -12,6 +12,7 @@ import { PageScaffold } from '../components/PageScaffold';
 import { StatusTag } from '../components/StatusTag';
 import { useAuth } from '../context/AuthContext';
 import { useKpmData, useRefreshKpmData } from '../hooks/useKpmData';
+import { useActionLock } from '../hooks/useActionLock';
 import { confirmSubmit } from '../hooks/useConfirmingForm';
 import { kpmApi } from '../services/kpmApi';
 import type { AnyRecord, Order } from '../types';
@@ -32,6 +33,7 @@ export function OrdersPage() {
   const [editing, setEditing] = useState<Order | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [detail, setDetail] = useState<Order | null>(null);
+  const { isLocked, runLocked } = useActionLock();
   const projectId = Form.useWatch('projectId', form);
   const selectedProject = (data?.projects || []).find((project) => project.id === projectId);
   const skuOptions = (selectedProject?.skus || []).map((sku) => ({ label: `${sku.wholeMachinePartNumber} · ${sku.configurationName} · ${sku.memoryType}`, value: sku.id }));
@@ -84,12 +86,14 @@ export function OrdersPage() {
     const values = await form.validateFields();
     const payload = { ...values, creator: values.creator || user?.name || user?.account, modifier: values.modifier || user?.name || user?.account };
     confirmSubmit(editing ? '确认修改订单？' : '确认新增订单？', async () => {
-      if (editing) await kpmApi.updateOrder(editing.id, payload);
-      else await kpmApi.createOrder(payload);
-      message.success(editing ? '订单已更新' : '订单已创建');
-      setModalOpen(false);
-      form.resetFields();
-      refreshOrderPage();
+      await runLocked('order-save', async () => {
+        if (editing) await kpmApi.updateOrder(editing.id, payload);
+        else await kpmApi.createOrder(payload);
+        message.success(editing ? '订单已更新' : '订单已创建');
+        setModalOpen(false);
+        form.resetFields();
+        refreshOrderPage();
+      });
     });
   }
 
@@ -125,7 +129,7 @@ export function OrdersPage() {
             ]}
           />
         </Card>
-        <Modal title={editing ? '编辑订单' : '新增订单'} open={modalOpen} maskClosable onCancel={() => setModalOpen(false)} onOk={submitOrder} width={820}>
+        <Modal title={editing ? '编辑订单' : '新增订单'} open={modalOpen} maskClosable onCancel={() => setModalOpen(false)} onOk={submitOrder} confirmLoading={isLocked('order-save')} width={820}>
           <Form form={form} layout="vertical" requiredMark={false}>
             <Space.Compact block>
               <Form.Item name="orderDate" label="下单日期" rules={[validationRules.required('请选择下单日期')]} style={{ width: '50%' }}><Input type="date" /></Form.Item>

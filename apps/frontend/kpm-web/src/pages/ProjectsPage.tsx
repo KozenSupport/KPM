@@ -8,6 +8,7 @@ import { DataState } from '../components/common/DataState';
 import { UserSelect } from '../components/common/UserSelect';
 import { PageScaffold } from '../components/PageScaffold';
 import { useKpmData, useRefreshKpmData } from '../hooks/useKpmData';
+import { useActionLock } from '../hooks/useActionLock';
 import { confirmSubmit } from '../hooks/useConfirmingForm';
 import { kpmApi } from '../services/kpmApi';
 import type { Project } from '../types';
@@ -23,6 +24,7 @@ export function ProjectsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [filters, setFilters] = useState({ keyword: '', archived: 'false' });
   const [pagination, setPagination] = useState({ current: 1, pageSize: 12 });
+  const { isLocked, runLocked } = useActionLock();
   const projectPageQuery = useQuery({
     queryKey: ['kpm', 'projects-page', filters, pagination.current, pagination.pageSize],
     queryFn: () => kpmApi.projectsPage({
@@ -65,12 +67,14 @@ export function ProjectsPage() {
     const members = (values.members || []).map((account: string) => ({ userAccount: account, role: '项目成员' }));
     const payload = { ...values, members };
     confirmSubmit(editing ? '确认修改项目？' : '确认新增项目？', async () => {
-      if (editing) await kpmApi.updateProject(editing.id, payload);
-      else await kpmApi.createProject(payload);
-      message.success(editing ? '项目已更新' : '项目已创建');
-      setModalOpen(false);
-      form.resetFields();
-      refreshProjectPage();
+      await runLocked('project-save', async () => {
+        if (editing) await kpmApi.updateProject(editing.id, payload);
+        else await kpmApi.createProject(payload);
+        message.success(editing ? '项目已更新' : '项目已创建');
+        setModalOpen(false);
+        form.resetFields();
+        refreshProjectPage();
+      });
     });
   }
 
@@ -100,7 +104,7 @@ export function ProjectsPage() {
             ]}
           />
         </Card>
-        <Modal title={editing ? '编辑项目' : '新增项目'} open={modalOpen} maskClosable onCancel={() => setModalOpen(false)} onOk={submitProject} okText="保存" width={720}>
+        <Modal title={editing ? '编辑项目' : '新增项目'} open={modalOpen} maskClosable onCancel={() => setModalOpen(false)} onOk={submitProject} okText="保存" confirmLoading={isLocked('project-save')} width={720}>
           <Form form={form} layout="vertical" requiredMark={false}>
             <Form.Item name="externalName" label="对外名称" rules={[validationRules.required('请输入对外名称'), validationRules.max(120)]}><Input /></Form.Item>
             <Form.Item name="internalName" label="内部名称" rules={[validationRules.max(120)]}><Input /></Form.Item>

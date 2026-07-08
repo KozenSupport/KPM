@@ -29,6 +29,7 @@ import { PageScaffold } from "../components/PageScaffold";
 import { StatusTag } from "../components/StatusTag";
 import { useAuth } from "../context/AuthContext";
 import { useKpmData, useRefreshKpmData } from "../hooks/useKpmData";
+import { useActionLock } from "../hooks/useActionLock";
 import { confirmSubmit } from "../hooks/useConfirmingForm";
 import { kpmApi } from "../services/kpmApi";
 import type { AnyRecord, Customer } from "../types";
@@ -70,6 +71,7 @@ export function CustomersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [detail, setDetail] = useState<Customer | null>(null);
   const [contactDetail, setContactDetail] = useState<AnyRecord | null>(null);
+  const [editingContact, setEditingContact] = useState<AnyRecord | null>(null);
   const [contactModal, setContactModal] = useState(false);
   const [followupModal, setFollowupModal] = useState(false);
   const [materialModal, setMaterialModal] = useState(false);
@@ -88,6 +90,7 @@ export function CustomersPage() {
   });
   const customers = customerPageQuery.data?.items || [];
   const activeCustomer = useMemo(() => detail, [detail]);
+  const { isLocked, runLocked } = useActionLock();
 
   function refreshCustomerPage() {
     refresh();
@@ -113,50 +116,88 @@ export function CustomersPage() {
   }
 
   async function submitCustomer() {
-    const values = await form.validateFields();
-    confirmSubmit(editing ? "确认修改客户？" : "确认新增客户？", async () => {
-      if (editing) await kpmApi.updateCustomer(editing.id, values);
-      else await kpmApi.createCustomer(values);
-      message.success(editing ? "客户已更新" : "客户已创建");
-      setModalOpen(false);
-      form.resetFields();
-      refreshCustomerPage();
+    await runLocked("customer-save-prepare", async () => {
+      const values = await form.validateFields();
+      confirmSubmit(editing ? "确认修改客户？" : "确认新增客户？", async () => {
+        await runLocked("customer-save", async () => {
+          if (editing) await kpmApi.updateCustomer(editing.id, values);
+          else await kpmApi.createCustomer(values);
+          message.success(editing ? "客户已更新" : "客户已创建");
+          setModalOpen(false);
+          form.resetFields();
+          refreshCustomerPage();
+        });
+      });
     });
   }
 
-  async function addContact() {
-    if (!detail) return;
-    const values = await contactForm.validateFields();
-    const updated = await kpmApi.addCustomerContact(detail.id, values);
-    setDetail(updated as Customer);
-    message.success("联系人已添加");
-    setContactModal(false);
+  function openContactCreate() {
+    setEditingContact(null);
     contactForm.resetFields();
-    refresh();
+    setContactModal(true);
+  }
+
+  function openContactEdit(contact: AnyRecord) {
+    setContactDetail(null);
+    setEditingContact(contact);
+    contactForm.resetFields();
+    contactForm.setFieldsValue(contact);
+    setContactModal(true);
+  }
+
+  async function saveContact() {
+    if (!detail) return;
+    await runLocked("customer-contact-save", async () => {
+      const values = await contactForm.validateFields();
+      const updated = editingContact
+        ? await kpmApi.updateCustomerContact(detail.id, editingContact.id, values)
+        : await kpmApi.addCustomerContact(detail.id, values);
+      setDetail(updated as Customer);
+      message.success(editingContact ? "联系人已更新" : "联系人已添加");
+      setContactModal(false);
+      setEditingContact(null);
+      contactForm.resetFields();
+      refresh();
+    });
+  }
+
+  function deleteContact(contact: AnyRecord) {
+    if (!activeCustomer || !contact?.id) return;
+    confirmSubmit(`确认删除联系人“${contact.name || "-"}”？`, async () => {
+      await runLocked(`customer-contact-delete:${contact.id}`, async () => {
+        const updated = await kpmApi.deleteCustomerContact(activeCustomer.id, contact.id);
+        setDetail(updated as Customer);
+        setContactDetail(null);
+        message.success("联系人已删除");
+        refresh();
+      });
+    });
   }
 
   async function addFollowup() {
     if (!activeCustomer) return;
-    const values = await followupForm.validateFields();
-    const files = normalizeUploadFiles(values.files);
-    const attachments = files.length
-      ? await uploadBusinessFiles(
-          files,
-          "customer-followup-attachments",
-          activeCustomer.id,
-          operatorName,
-        )
-      : [];
-    const updated = await kpmApi.addCustomerFollowup(activeCustomer.id, {
-      author: operatorName,
-      content: values.content,
-      attachments,
+    await runLocked("customer-followup-save", async () => {
+      const values = await followupForm.validateFields();
+      const files = normalizeUploadFiles(values.files);
+      const attachments = files.length
+        ? await uploadBusinessFiles(
+            files,
+            "customer-followup-attachments",
+            activeCustomer.id,
+            operatorName,
+          )
+        : [];
+      const updated = await kpmApi.addCustomerFollowup(activeCustomer.id, {
+        author: operatorName,
+        content: values.content,
+        attachments,
+      });
+      setDetail(updated as Customer);
+      message.success("跟进记录已添加");
+      setFollowupModal(false);
+      followupForm.resetFields();
+      refresh();
     });
-    setDetail(updated as Customer);
-    message.success("跟进记录已添加");
-    setFollowupModal(false);
-    followupForm.resetFields();
-    refresh();
   }
 
   function openNotificationModal() {
@@ -170,44 +211,60 @@ export function CustomersPage() {
     confirmSubmit(
       "确认发送该客户通知？发布后将同步到该客户所有联系人的客户门户消息盒子，并在邮箱配置启用时发送邮件。",
       async () => {
-        const result = await kpmApi.sendCustomerNotification(
-          activeCustomer.id,
-          values,
-        );
-        message.success(
-          `通知已发送：系统消息 ${result.portalMessageCount || 0} 条，邮件尝试 ${result.emailAttemptCount || 0} 封`,
-        );
-        setNotificationModal(false);
-        notificationForm.resetFields();
+        await runLocked("customer-notification-send", async () => {
+          const result = await kpmApi.sendCustomerNotification(
+            activeCustomer.id,
+            values,
+          );
+          message.success(
+            `通知已发送：系统消息 ${result.portalMessageCount || 0} 条，邮件尝试 ${result.emailAttemptCount || 0} 封`,
+          );
+          setNotificationModal(false);
+          notificationForm.resetFields();
+        });
       },
     );
   }
 
   async function addMaterial() {
     if (!activeCustomer) return;
-    const values = await materialForm.validateFields();
-    const files = normalizeUploadFiles(values.files);
-    if (!files.length) {
-      message.warning("请选择要上传的客户资料");
-      return;
-    }
-    const materials = await uploadBusinessFiles(
-      files,
-      "customer-materials",
-      activeCustomer.id,
-      operatorName,
-    );
-    const updatedRows = await Promise.all(
-      materials.map((material) =>
-        kpmApi.addCustomerMaterial(activeCustomer.id, material),
-      ),
-    );
-    const latest = updatedRows.at(-1);
-    if (latest) setDetail(latest as Customer);
-    message.success("客户资料已上传");
-    setMaterialModal(false);
-    materialForm.resetFields();
-    refresh();
+    await runLocked("customer-material-upload", async () => {
+      const values = await materialForm.validateFields();
+      const files = normalizeUploadFiles(values.files);
+      if (!files.length) {
+        message.warning("请选择要上传的客户资料");
+        return;
+      }
+      const materials = await uploadBusinessFiles(
+        files,
+        "customer-materials",
+        activeCustomer.id,
+        operatorName,
+      );
+      const updatedRows = await Promise.all(
+        materials.map((material) =>
+          kpmApi.addCustomerMaterial(activeCustomer.id, material),
+        ),
+      );
+      const latest = updatedRows.at(-1);
+      if (latest) setDetail(latest as Customer);
+      message.success("客户资料已上传");
+      setMaterialModal(false);
+      materialForm.resetFields();
+      refresh();
+    });
+  }
+
+  function deleteMaterial(material: AnyRecord) {
+    if (!activeCustomer || !material?.id) return;
+    confirmSubmit(`确认删除客户资料“${material.fileName || "-"}”？`, async () => {
+      await runLocked(`customer-material-delete:${material.id}`, async () => {
+        const updated = await kpmApi.deleteCustomerMaterial(activeCustomer.id, material.id);
+        setDetail(updated as Customer);
+        message.success("客户资料已删除");
+        refresh();
+      });
+    });
   }
 
   return (
@@ -325,6 +382,7 @@ export function CustomersPage() {
           maskClosable
           onCancel={() => setModalOpen(false)}
           onOk={submitCustomer}
+          confirmLoading={isLocked("customer-save-prepare") || isLocked("customer-save")}
           width={720}
         >
           <Form form={form} layout="vertical" requiredMark={false}>
@@ -429,7 +487,7 @@ export function CustomersPage() {
                 title="联系人"
                 size="small"
                 extra={
-                  <Button size="small" onClick={() => setContactModal(true)}>
+                  <Button size="small" onClick={openContactCreate}>
                     新增联系人
                   </Button>
                 }
@@ -515,18 +573,28 @@ export function CustomersPage() {
                     },
                     {
                       title: "操作",
-                      width: 90,
+                      width: 140,
                       render: (_, row: AnyRecord) => (
-                        <Button
-                          size="small"
-                          onClick={() =>
-                            downloadBusinessFile(row).catch((err) =>
-                              message.error(err.message || "下载失败"),
-                            )
-                          }
-                        >
-                          下载
-                        </Button>
+                        <Space>
+                          <Button
+                            size="small"
+                            onClick={() =>
+                              downloadBusinessFile(row).catch((err) =>
+                                message.error(err.message || "下载失败"),
+                              )
+                            }
+                          >
+                            下载
+                          </Button>
+                          <Button
+                            size="small"
+                            danger
+                            loading={isLocked(`customer-material-delete:${row.id}`)}
+                            onClick={() => deleteMaterial(row)}
+                          >
+                            删除
+                          </Button>
+                        </Space>
                       ),
                     },
                   ]}
@@ -588,6 +656,7 @@ export function CustomersPage() {
           onCancel={() => setNotificationModal(false)}
           onOk={sendNotification}
           okText="发送"
+          confirmLoading={isLocked("customer-notification-send")}
           width={680}
         >
           <Form form={notificationForm} layout="vertical" requiredMark={false}>
@@ -623,7 +692,21 @@ export function CustomersPage() {
           title="联系人详情"
           open={Boolean(contactDetail)}
           onCancel={() => setContactDetail(null)}
-          footer={null}
+          footer={
+            contactDetail ? (
+              <Space>
+                <Button onClick={() => setContactDetail(null)}>关闭</Button>
+                <Button onClick={() => openContactEdit(contactDetail)}>编辑</Button>
+                <Button
+                  danger
+                  loading={isLocked(`customer-contact-delete:${contactDetail.id}`)}
+                  onClick={() => deleteContact(contactDetail)}
+                >
+                  删除
+                </Button>
+              </Space>
+            ) : null
+          }
         >
           {contactDetail ? (
             <Descriptions column={1} bordered size="small">
@@ -646,11 +729,12 @@ export function CustomersPage() {
           ) : null}
         </Modal>
         <Modal
-          title="新增联系人"
+          title={editingContact ? "编辑联系人" : "新增联系人"}
           open={contactModal}
           maskClosable
-          onCancel={() => setContactModal(false)}
-          onOk={addContact}
+          onCancel={() => { setContactModal(false); setEditingContact(null); }}
+          onOk={saveContact}
+          confirmLoading={isLocked("customer-contact-save")}
         >
           <Form form={contactForm} layout="vertical">
             <Form.Item
@@ -699,6 +783,7 @@ export function CustomersPage() {
           maskClosable
           onCancel={() => setFollowupModal(false)}
           onOk={addFollowup}
+          confirmLoading={isLocked("customer-followup-save")}
         >
           <Form form={followupForm} layout="vertical">
             <Form.Item
@@ -730,6 +815,7 @@ export function CustomersPage() {
           onCancel={() => setMaterialModal(false)}
           onOk={addMaterial}
           okText="上传"
+          confirmLoading={isLocked("customer-material-upload")}
         >
           <Form form={materialForm} layout="vertical">
             <Form.Item

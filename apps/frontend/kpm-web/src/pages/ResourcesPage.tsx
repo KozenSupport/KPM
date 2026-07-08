@@ -7,6 +7,7 @@ import { EnumSelect } from '../components/common/EnumSelect';
 import { PageScaffold } from '../components/PageScaffold';
 import { StatusTag } from '../components/StatusTag';
 import { useKpmData, useRefreshKpmData } from '../hooks/useKpmData';
+import { useActionLock } from '../hooks/useActionLock';
 import { confirmSubmit } from '../hooks/useConfirmingForm';
 import { kpmApi } from '../services/kpmApi';
 import type { AnyRecord, Department, EnumItem, Permission, Role, TaskStatusTransition, User } from '../types';
@@ -41,6 +42,7 @@ export function ResourcesPage() {
   const [roleModal, setRoleModal] = useState<{ open: boolean; row?: Role }>({ open: false });
   const [enumModal, setEnumModal] = useState<{ open: boolean; row?: EnumItem }>({ open: false });
   const [transitionModal, setTransitionModal] = useState(false);
+  const { isLocked, runLocked } = useActionLock();
 
   const permissionOptions = (data?.bootstrap.permissions || []).map((permission) => ({ label: `${permission.name}（${permission.code || permission.key}）`, value: permission.code || permission.key || permission.name }));
   const roleOptions = (data?.bootstrap.roles || []).map((role) => ({ label: role.name, value: role.name }));
@@ -67,11 +69,13 @@ export function ResourcesPage() {
     const values = await userForm.validateFields();
     const payload = { ...values, account: values.account || values.email };
     confirmSubmit(userModal.row ? '确认修改用户？' : '确认新增用户？', async () => {
-      const result = userModal.row ? await kpmApi.updateUser(userModal.row.id, payload) : await kpmApi.createUser(payload);
-      message.success(result.defaultPassword ? `用户已创建，默认密码：${result.defaultPassword}` : '用户已保存');
-      setUserModal({ open: false });
-      userForm.resetFields();
-      refresh();
+      await runLocked('resource-user-save', async () => {
+        const result = userModal.row ? await kpmApi.updateUser(userModal.row.id, payload) : await kpmApi.createUser(payload);
+        message.success(result.defaultPassword ? `用户已创建，默认密码：${result.defaultPassword}` : '用户已保存');
+        setUserModal({ open: false });
+        userForm.resetFields();
+        refresh();
+      });
     });
   }
 
@@ -83,12 +87,14 @@ export function ResourcesPage() {
   async function submitDept() {
     const values = await deptForm.validateFields();
     confirmSubmit(deptModal.row ? '确认修改部门？' : '确认新增部门？', async () => {
-      if (deptModal.row) await kpmApi.updateDepartment(deptModal.row.id, values);
-      else await kpmApi.createDepartment(values);
-      message.success('部门已保存');
-      setDeptModal({ open: false });
-      deptForm.resetFields();
-      refresh();
+      await runLocked('resource-department-save', async () => {
+        if (deptModal.row) await kpmApi.updateDepartment(deptModal.row.id, values);
+        else await kpmApi.createDepartment(values);
+        message.success('部门已保存');
+        setDeptModal({ open: false });
+        deptForm.resetFields();
+        refresh();
+      });
     });
   }
 
@@ -100,12 +106,14 @@ export function ResourcesPage() {
   async function submitRole() {
     const values = await roleForm.validateFields();
     confirmSubmit(roleModal.row ? '确认修改角色？' : '确认新增角色？', async () => {
-      if (roleModal.row) await kpmApi.updateRole(roleModal.row.id, values);
-      else await kpmApi.createRole(values);
-      message.success('角色已保存');
-      setRoleModal({ open: false });
-      roleForm.resetFields();
-      refresh();
+      await runLocked('resource-role-save', async () => {
+        if (roleModal.row) await kpmApi.updateRole(roleModal.row.id, values);
+        else await kpmApi.createRole(values);
+        message.success('角色已保存');
+        setRoleModal({ open: false });
+        roleForm.resetFields();
+        refresh();
+      });
     });
   }
 
@@ -117,22 +125,26 @@ export function ResourcesPage() {
   async function submitEnum() {
     const values = await enumForm.validateFields();
     confirmSubmit(enumModal.row ? '确认修改枚举？' : '确认新增枚举？', async () => {
-      if (enumModal.row) await kpmApi.updateEnum(enumModal.row.id, values);
-      else await kpmApi.createEnum(values);
-      message.success('枚举已保存');
-      setEnumModal({ open: false });
-      enumForm.resetFields();
-      refresh();
+      await runLocked('resource-enum-save', async () => {
+        if (enumModal.row) await kpmApi.updateEnum(enumModal.row.id, values);
+        else await kpmApi.createEnum(values);
+        message.success('枚举已保存');
+        setEnumModal({ open: false });
+        enumForm.resetFields();
+        refresh();
+      });
     });
   }
 
   async function submitTransition() {
     const values = await transitionForm.validateFields();
-    await kpmApi.createTaskStatusTransition(values);
-    message.success('流转规则已保存');
-    setTransitionModal(false);
-    transitionForm.resetFields();
-    refresh();
+    await runLocked('resource-transition-save', async () => {
+      await kpmApi.createTaskStatusTransition(values);
+      message.success('流转规则已保存');
+      setTransitionModal(false);
+      transitionForm.resetFields();
+      refresh();
+    });
   }
 
   return (
@@ -209,7 +221,7 @@ export function ResourcesPage() {
             },
           ]}
         />
-        <Modal title={userModal.row ? '编辑用户' : '新增用户'} open={userModal.open} maskClosable onCancel={() => setUserModal({ open: false })} onOk={submitUser} width={760}>
+        <Modal title={userModal.row ? '编辑用户' : '新增用户'} open={userModal.open} maskClosable onCancel={() => setUserModal({ open: false })} onOk={submitUser} confirmLoading={isLocked('resource-user-save')} width={760}>
           <Form form={userForm} layout="vertical">
             <Form.Item name="name" label="姓名" rules={[validationRules.required('请输入姓名'), validationRules.max(40)]}><Input /></Form.Item>
             <Form.Item name="email" label="邮箱/登录账号" rules={[validationRules.required('请输入邮箱'), validationRules.email()]}><Input /></Form.Item>
@@ -219,13 +231,13 @@ export function ResourcesPage() {
             <Form.Item name="status" label="状态"><EnumSelect bootstrap={data?.bootstrap} enumType="user_status" /></Form.Item>
           </Form>
         </Modal>
-        <Modal title={deptModal.row ? '编辑部门' : '新增部门'} open={deptModal.open} maskClosable onCancel={() => setDeptModal({ open: false })} onOk={submitDept}>
+        <Modal title={deptModal.row ? '编辑部门' : '新增部门'} open={deptModal.open} maskClosable onCancel={() => setDeptModal({ open: false })} onOk={submitDept} confirmLoading={isLocked('resource-department-save')}>
           <Form form={deptForm} layout="vertical"><Form.Item name="name" label="部门名称" rules={[validationRules.required('请输入部门名称')]}><Input /></Form.Item><Form.Item name="status" label="状态"><Select options={[{ label: '启用', value: '启用' }, { label: '停用', value: '停用' }]} /></Form.Item></Form>
         </Modal>
-        <Modal title={roleModal.row ? '编辑角色' : '新增角色'} open={roleModal.open} maskClosable onCancel={() => setRoleModal({ open: false })} onOk={submitRole} width={760}>
+        <Modal title={roleModal.row ? '编辑角色' : '新增角色'} open={roleModal.open} maskClosable onCancel={() => setRoleModal({ open: false })} onOk={submitRole} confirmLoading={isLocked('resource-role-save')} width={760}>
           <Form form={roleForm} layout="vertical"><Form.Item name="name" label="角色名称" rules={[validationRules.required('请输入角色名称')]}><Input /></Form.Item><Form.Item name="roleType" label="角色类型"><Input /></Form.Item><Form.Item name="status" label="状态"><Select options={[{ label: '启用', value: '启用' }, { label: '停用', value: '停用' }]} /></Form.Item><Form.Item name="permissions" label="角色权限"><Select mode="multiple" showSearch optionFilterProp="label" options={permissionOptions} /></Form.Item></Form>
         </Modal>
-        <Modal title={enumModal.row ? '编辑枚举' : '新增枚举'} open={enumModal.open} maskClosable onCancel={() => setEnumModal({ open: false })} onOk={submitEnum} width={760}>
+        <Modal title={enumModal.row ? '编辑枚举' : '新增枚举'} open={enumModal.open} maskClosable onCancel={() => setEnumModal({ open: false })} onOk={submitEnum} confirmLoading={isLocked('resource-enum-save')} width={760}>
           <Form form={enumForm} layout="vertical">
             <Form.Item name="enumType" label="枚举类型" rules={[validationRules.required('请选择枚举类型')]}><Select showSearch options={enumTypeOptions} /></Form.Item>
             <Space.Compact block>
@@ -239,7 +251,7 @@ export function ResourcesPage() {
             </Space.Compact>
           </Form>
         </Modal>
-        <Modal title="新增任务状态流转" open={transitionModal} maskClosable onCancel={() => setTransitionModal(false)} onOk={submitTransition}>
+        <Modal title="新增任务状态流转" open={transitionModal} maskClosable onCancel={() => setTransitionModal(false)} onOk={submitTransition} confirmLoading={isLocked('resource-transition-save')}>
           <Form form={transitionForm} layout="vertical"><Form.Item name="fromStatus" label="起始状态" rules={[validationRules.required('请选择起始状态')]}><EnumSelect bootstrap={data?.bootstrap} enumType="task_status" /></Form.Item><Form.Item name="toStatus" label="目标状态" rules={[validationRules.required('请选择目标状态')]}><EnumSelect bootstrap={data?.bootstrap} enumType="task_status" /></Form.Item></Form>
         </Modal>
       </DataState>

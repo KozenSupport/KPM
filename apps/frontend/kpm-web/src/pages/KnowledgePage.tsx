@@ -35,6 +35,7 @@ import { PageScaffold } from "../components/PageScaffold";
 import { StatusTag } from "../components/StatusTag";
 import { useAuth } from "../context/AuthContext";
 import { useKpmData } from "../hooks/useKpmData";
+import { useActionLock } from "../hooks/useActionLock";
 import { confirmSubmit } from "../hooks/useConfirmingForm";
 import { kpmApi } from "../services/kpmApi";
 import type { AnyRecord, KnowledgeArticle } from "../types";
@@ -179,6 +180,7 @@ export function KnowledgePage() {
   const [editing, setEditing] = useState<KnowledgeArticle | null>(null);
   const [detail, setDetail] = useState<KnowledgeArticle | null>(null);
   const [attachmentFiles, setAttachmentFiles] = useState<UploadFile[]>([]);
+  const { isLocked, runLocked } = useActionLock();
   const [existingAttachments, setExistingAttachments] = useState<AnyRecord[]>([]);
   const [taskSearch, setTaskSearch] = useState("");
 
@@ -251,22 +253,24 @@ export function KnowledgePage() {
   async function submit() {
     const values = await form.validateFields();
     confirmSubmit(editing ? t("knowledge.confirmUpdate") : t("knowledge.confirmCreate"), async () => {
-      const files = normalizeUploadFiles(attachmentFiles);
-      const uploaded = files.length
-        ? await uploadBusinessFiles(files, "knowledge-attachments", editing?.id || `knowledge-${Date.now()}`, operatorName)
-        : [];
-      const body = {
-        ...values,
-        projectIds: values.projectScope === "PROJECT" ? values.projectIds || [] : [],
-        customerIds: values.customerScope === "CUSTOMER" ? values.customerIds || [] : [],
-        attachments: [...existingAttachments, ...uploaded],
-      };
-      if (editing) await kpmApi.updateKnowledgeArticle(editing.id, body);
-      else await kpmApi.createKnowledgeArticle(body);
-      message.success(t("knowledge.saved"));
-      setModalOpen(false);
-      resetEditor();
-      await refreshKnowledge();
+      await runLocked("knowledge-save", async () => {
+        const files = normalizeUploadFiles(attachmentFiles);
+        const uploaded = files.length
+          ? await uploadBusinessFiles(files, "knowledge-attachments", editing?.id || `knowledge-${Date.now()}`, operatorName)
+          : [];
+        const body = {
+          ...values,
+          projectIds: values.projectScope === "PROJECT" ? values.projectIds || [] : [],
+          customerIds: values.customerScope === "CUSTOMER" ? values.customerIds || [] : [],
+          attachments: [...existingAttachments, ...uploaded],
+        };
+        if (editing) await kpmApi.updateKnowledgeArticle(editing.id, body);
+        else await kpmApi.createKnowledgeArticle(body);
+        message.success(t("knowledge.saved"));
+        setModalOpen(false);
+        resetEditor();
+        await refreshKnowledge();
+      });
     });
   }
 
@@ -410,6 +414,7 @@ export function KnowledgePage() {
         onCancel={() => setModalOpen(false)}
         onOk={submit}
         okText={t("common.save")}
+        confirmLoading={isLocked("knowledge-save")}
         width={900}
         className="kpm-knowledge-modal"
       >

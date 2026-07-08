@@ -5,6 +5,7 @@ import { ActionButtons } from '../components/common/ActionButtons';
 import { DataState } from '../components/common/DataState';
 import { PageScaffold } from '../components/PageScaffold';
 import { useKpmData, useRefreshKpmData } from '../hooks/useKpmData';
+import { useActionLock } from '../hooks/useActionLock';
 import { confirmSubmit } from '../hooks/useConfirmingForm';
 import { kpmApi } from '../services/kpmApi';
 import type { AnyRecord } from '../types';
@@ -24,6 +25,7 @@ export function TemplatesPage() {
   const [form] = Form.useForm();
   const [editing, setEditing] = useState<AnyRecord | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const { isLocked, runLocked } = useActionLock();
 
   function openCreate() {
     setEditing(null);
@@ -43,12 +45,14 @@ export function TemplatesPage() {
     const payload = { ...values, stages: textToStages(values.stagesText) };
     delete payload.stagesText;
     confirmSubmit(editing ? '确认修改流程模板？' : '确认新增流程模板？', async () => {
-      if (editing) await kpmApi.updateTemplate(editing.id, payload);
-      else await kpmApi.createTemplate(payload);
-      message.success('流程模板已保存');
-      setModalOpen(false);
-      form.resetFields();
-      refresh();
+      await runLocked('template-save', async () => {
+        if (editing) await kpmApi.updateTemplate(editing.id, payload);
+        else await kpmApi.createTemplate(payload);
+        message.success('流程模板已保存');
+        setModalOpen(false);
+        form.resetFields();
+        refresh();
+      });
     });
   }
 
@@ -64,7 +68,7 @@ export function TemplatesPage() {
             { title: '操作', width: 112, render: (_, row) => <ActionButtons onEdit={() => openEdit(row)} onDelete={() => kpmApi.deleteTemplate(row.id).then(() => { message.success('模板已删除'); refresh(); })} /> },
           ]} />
         </Card>
-        <Modal title={editing ? '编辑流程模板' : '新增流程模板'} open={modalOpen} maskClosable onCancel={() => setModalOpen(false)} onOk={submit} width={680}>
+        <Modal title={editing ? '编辑流程模板' : '新增流程模板'} open={modalOpen} maskClosable onCancel={() => setModalOpen(false)} onOk={submit} confirmLoading={isLocked('template-save')} width={680}>
           <Form form={form} layout="vertical">
             <Form.Item name="name" label="模板名称" rules={[validationRules.required('请输入模板名称')]}><Input /></Form.Item>
             <Form.Item name="scope" label="适用范围" rules={[validationRules.required('请输入适用范围')]}><Input /></Form.Item>

@@ -74,6 +74,12 @@ public class CustomerApiController {
         return ApiResponse.ok(customerService.addContact(id, request));
     }
 
+    @PutMapping("/{id}/contacts/{contactId}")
+    @Operation(summary = "修改客户联系人", description = "修改客户详情中的指定联系人。")
+    public ApiResponse<CustomerDto> updateContact(@PathVariable String id, @PathVariable String contactId, @Valid @RequestBody CustomerContactRequest request) {
+        return ApiResponse.ok(customerService.updateContact(id, contactId, request));
+    }
+
     @DeleteMapping("/{id}/contacts/{contactId}")
     @Operation(summary = "删除客户联系人", description = "删除客户详情中的指定联系人。")
     public ApiResponse<CustomerDto> deleteContact(@PathVariable String id, @PathVariable String contactId) {
@@ -101,6 +107,12 @@ public class CustomerApiController {
     @Operation(summary = "新增客户资料", description = "记录客户资料库中的文件元数据，后续可接入 OSS 文件存储。")
     public ApiResponse<CustomerDto> addMaterial(@PathVariable String id, @Valid @RequestBody FileMetadataRequest request) {
         return ApiResponse.ok(customerService.addMaterial(id, request));
+    }
+
+    @DeleteMapping("/{id}/materials/{materialId}")
+    @Operation(summary = "删除客户资料", description = "逻辑删除客户资料库中的文件记录，避免误上传后无法处理。")
+    public ApiResponse<CustomerDto> deleteMaterial(@PathVariable String id, @PathVariable String materialId) {
+        return ApiResponse.ok(customerService.deleteMaterial(id, materialId));
     }
     private String resolvePublisher(String encodedPublisher, String publisher, String publisherAccount) {
         String decoded = decodeBase64Utf8(encodedPublisher);

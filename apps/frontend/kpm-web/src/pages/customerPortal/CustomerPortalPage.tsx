@@ -44,6 +44,7 @@ import { TaskCategoryTag, TaskPriorityTag, TaskProjectTag } from "../../componen
 import { KozenLogo } from "../../components/KozenLogo";
 import { LanguageSwitch } from "../../components/LanguageSwitch";
 import { StatusTag } from "../../components/StatusTag";
+import { useActionLock } from "../../hooks/useActionLock";
 import {
   clearCustomerPortalSession,
   customerPortalApi,
@@ -184,6 +185,7 @@ export function CustomerPortalPage() {
   const [materialPagination, setMaterialPagination] = useState({ current: 1, pageSize: 8 });
   const [statsModal, setStatsModal] = useState(false);
   const [statsProjectId, setStatsProjectId] = useState<string>();
+  const { isLocked, runLocked } = useActionLock();
 
   const query = useQuery({
     queryKey: portalDataKey,
@@ -541,30 +543,34 @@ export function CustomerPortalPage() {
   }
 
   async function submitTask() {
-    const values = await taskForm.validateFields();
-    const files = normalizeUploadFiles(values.files);
-    const payload = {
-      projectId: values.projectId,
-      title: values.title,
-      description: values.description,
-      priority: values.priority,
-    };
-    Modal.confirm({
-      title: t("portal.submitTaskConfirmTitle"),
-      content: t("portal.submitTaskConfirmContent"),
-      okText: t("portal.submit"),
-      cancelText: t("portal.cancel"),
-      onOk: async () => {
-        const createdTask = await customerPortalApi.createTask(payload);
-        const attachments = await uploadPortalTaskFiles(createdTask.id, files);
-        if (attachments.length) {
-          await customerPortalApi.addTaskAttachments(createdTask.id, attachments);
-        }
-        message.success(t("portal.taskSubmitted"));
-        setTaskModal(false);
-        taskForm.resetFields();
-        await refresh();
-      },
+    await runLocked("portal-task-prepare", async () => {
+      const values = await taskForm.validateFields();
+      const files = normalizeUploadFiles(values.files);
+      const payload = {
+        projectId: values.projectId,
+        title: values.title,
+        description: values.description,
+        priority: values.priority,
+      };
+      Modal.confirm({
+        title: t("portal.submitTaskConfirmTitle"),
+        content: t("portal.submitTaskConfirmContent"),
+        okText: t("portal.submit"),
+        cancelText: t("portal.cancel"),
+        onOk: async () => {
+          await runLocked("portal-task-submit", async () => {
+            const createdTask = await customerPortalApi.createTask(payload);
+            const attachments = await uploadPortalTaskFiles(createdTask.id, files);
+            if (attachments.length) {
+              await customerPortalApi.addTaskAttachments(createdTask.id, attachments);
+            }
+            message.success(t("portal.taskSubmitted"));
+            setTaskModal(false);
+            taskForm.resetFields();
+            await refresh();
+          });
+        },
+      });
     });
   }
 
@@ -600,32 +606,34 @@ export function CustomerPortalPage() {
 
   async function submitTaskComment() {
     if (!commentTask) return;
-    const values = await commentForm.validateFields();
-    const files = normalizeUploadFiles(values.files);
-    const attachments = await uploadPortalCommentFiles(commentTask.id, files);
-    const updatedTask = await customerPortalApi.addTaskComment(commentTask.id, {
-      content: values.content,
-      attachments,
+    await runLocked("portal-task-comment-submit", async () => {
+      const values = await commentForm.validateFields();
+      const files = normalizeUploadFiles(values.files);
+      const attachments = await uploadPortalCommentFiles(commentTask.id, files);
+      const updatedTask = await customerPortalApi.addTaskComment(commentTask.id, {
+        content: values.content,
+        attachments,
+      });
+      message.success(t("portal.commentSubmitted"));
+      setCommentTask((current) =>
+        current && current.id === updatedTask.id
+          ? { ...current, ...updatedTask, attachments: updatedTask.attachments || current.attachments }
+          : current,
+      );
+      commentForm.resetFields();
+      await queryClient.invalidateQueries({ queryKey: portalDataKey });
+      await queryClient.invalidateQueries({
+        queryKey: ["kpm", "customer-portal", "tasks-page"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["kpm", "customer-portal", "task-stats"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["kpm", "customer-portal", "task-detail", commentTask.id],
+      });
+      await commentQuery.refetch();
     });
-    message.success(t("portal.commentSubmitted"));
-	    setCommentTask((current) =>
-	      current && current.id === updatedTask.id
-	        ? { ...current, ...updatedTask, attachments: updatedTask.attachments || current.attachments }
-	        : current,
-	    );
-    commentForm.resetFields();
-    await queryClient.invalidateQueries({ queryKey: portalDataKey });
-    await queryClient.invalidateQueries({
-      queryKey: ["kpm", "customer-portal", "tasks-page"],
-    });
-	    await queryClient.invalidateQueries({
-	      queryKey: ["kpm", "customer-portal", "task-stats"],
-	    });
-	    await queryClient.invalidateQueries({
-	      queryKey: ["kpm", "customer-portal", "task-detail", commentTask.id],
-	    });
-	    await commentQuery.refetch();
-	  }
+  }
 
 	  function openTaskDetail(task: CustomerPortalTask) {
 	    commentForm.resetFields();
@@ -1132,6 +1140,7 @@ export function CustomerPortalPage() {
         onCancel={() => setTaskModal(false)}
         onOk={submitTask}
         okText={t("portal.submitTask")}
+        confirmLoading={isLocked("portal-task-prepare") || isLocked("portal-task-submit")}
         width={680}
       >
         <Form form={taskForm} layout="vertical" requiredMark={false}>
@@ -1212,6 +1221,7 @@ export function CustomerPortalPage() {
 	        onCancel={() => setCommentTask(null)}
         onOk={submitTaskComment}
         okText={t("portal.submitComment")}
+        confirmLoading={isLocked("portal-task-comment-submit")}
         width={760}
         className="kpm-portal-task-modal"
       >

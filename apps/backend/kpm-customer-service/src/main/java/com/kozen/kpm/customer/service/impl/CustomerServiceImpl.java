@@ -115,9 +115,23 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     @Transactional
+    public CustomerDto updateContact(String id, String contactId, CustomerContactRequest request) {
+        requireCustomer(id);
+        int updated = customerMapper.updateContact(id, contactId, request);
+        if (updated == 0) {
+            throw new IllegalArgumentException("联系人不存在或已删除");
+        }
+        return detail(id);
+    }
+
+    @Override
+    @Transactional
     public CustomerDto deleteContact(String id, String contactId) {
         requireCustomer(id);
-        customerMapper.deleteContact(id, contactId);
+        int updated = customerMapper.deleteContact(id, contactId);
+        if (updated == 0) {
+            throw new IllegalArgumentException("联系人不存在或已删除");
+        }
         return detail(id);
     }
 
@@ -140,6 +154,17 @@ public class CustomerServiceImpl implements CustomerService {
     public CustomerDto addMaterial(String id, FileMetadataRequest request) {
         requireCustomer(id);
         customerMapper.insertMaterial(IdUtil.nanoId("cm"), id, request);
+        return detail(id);
+    }
+
+    @Override
+    @Transactional
+    public CustomerDto deleteMaterial(String id, String materialId) {
+        requireCustomer(id);
+        int updated = customerMapper.deleteMaterial(id, materialId);
+        if (updated == 0) {
+            throw new IllegalArgumentException("客户资料不存在或已删除");
+        }
         return detail(id);
     }
 

@@ -174,8 +174,20 @@ public interface CustomerMapper {
             @Param("publisher") String publisher
     );
 
-    @Update("update kpm_customer_contacts set del_flag=1, update_time=current_timestamp where customer_id=#{customerId} and id=#{contactId}")
-    void deleteContact(@Param("customerId") String customerId, @Param("contactId") String contactId);
+    @Update("""
+            update kpm_customer_contacts
+            set name=#{request.name},
+                title=#{request.title},
+                phone=#{request.phone},
+                email=#{request.email},
+                remark=#{request.remark},
+                update_time=current_timestamp
+            where customer_id=#{customerId} and id=#{contactId} and del_flag=0
+            """)
+    int updateContact(@Param("customerId") String customerId, @Param("contactId") String contactId, @Param("request") CustomerContactRequest request);
+
+    @Update("update kpm_customer_contacts set del_flag=1, update_time=current_timestamp where customer_id=#{customerId} and id=#{contactId} and del_flag=0")
+    int deleteContact(@Param("customerId") String customerId, @Param("contactId") String contactId);
 
     @Select("""
             select id,
@@ -199,6 +211,9 @@ public interface CustomerMapper {
             values (#{id}, #{customerId}, #{request.fileName}, #{request.fileType}, #{request.fileSize}, #{request.uploader}, #{request.bucket}, #{request.objectKey}, #{request.storageUrl}, coalesce(#{request.storageCategory}, #{request.category}))
             """)
     void insertMaterial(@Param("id") String id, @Param("customerId") String customerId, @Param("request") FileMetadataRequest request);
+
+    @Update("update kpm_customer_materials set del_flag=1, update_time=current_timestamp where customer_id=#{customerId} and id=#{materialId} and del_flag=0")
+    int deleteMaterial(@Param("customerId") String customerId, @Param("materialId") String materialId);
 
     @Select("""
             select id,

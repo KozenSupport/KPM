@@ -85,6 +85,9 @@ public interface ProjectService {
     /** Publish a stage material to the project material area. */
     ProjectDto publishStageMaterial(String materialId);
 
+    /** Logically delete one stage material metadata record. */
+    ProjectDto deleteStageMaterial(String materialId, String operator);
+
     /** Mark one project material as visible to customer portal users after confirmation. */
     ProjectDto publishProjectMaterialToCustomer(String projectId, String materialId);
 
