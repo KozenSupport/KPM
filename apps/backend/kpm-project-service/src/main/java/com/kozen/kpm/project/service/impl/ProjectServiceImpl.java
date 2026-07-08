@@ -89,9 +89,10 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectDto create(ProjectRequest request) {
         String id = uniqueProjectId(request.externalName());
         UserLookupEntity manager = requireUser(request.managerAccount(), "项目负责人");
-        projectMapper.insertProject(new ProjectWriteCommand(id, request.externalName(), request.internalName(), request.modelName(), manager.getId(), manager.getAccount(), request.description()));
+        String processTemplateId = resolveTemplateIdForProjectCreation(request);
+        projectMapper.insertProject(new ProjectWriteCommand(id, request.externalName(), request.internalName(), request.modelName(), manager.getId(), manager.getAccount(), processTemplateId, request.description()));
         replaceProjectMembers(id, request.safeMembers(), request.managerAccount());
-        createProjectStages(id, request.safeStages());
+        createProjectStages(id, request.safeStages(), processTemplateId);
         publishProjectCreatedEvent(id, request, manager);
         return detail(id);
     }
@@ -101,7 +102,7 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectDto update(String id, ProjectRequest request) {
         ensureProjectExists(id);
         UserLookupEntity manager = requireUser(request.managerAccount(), "项目负责人");
-        projectMapper.updateProject(new ProjectWriteCommand(id, request.externalName(), request.internalName(), request.modelName(), manager.getId(), manager.getAccount(), request.description()));
+        projectMapper.updateProject(new ProjectWriteCommand(id, request.externalName(), request.internalName(), request.modelName(), manager.getId(), manager.getAccount(), null, request.description()));
         replaceProjectMembers(id, request.safeMembers(), request.managerAccount());
         replaceStageAssignees(id, request.safeStages());
         return detail(id);
@@ -421,7 +422,7 @@ public class ProjectServiceImpl implements ProjectService {
         return projectConverter.toTemplateDto(template, projectMapper.templateStageNames(template.getId()));
     }
 
-    private void createProjectStages(String projectId, List<ProjectStageRequest> providedStages) {
+    private void createProjectStages(String projectId, List<ProjectStageRequest> providedStages, String processTemplateId) {
         if (!providedStages.isEmpty()) {
             int order = 1;
             for (ProjectStageRequest stage : providedStages) {
@@ -433,12 +434,36 @@ public class ProjectServiceImpl implements ProjectService {
             return;
         }
 
-        List<ProcessTemplateEntity> templates = projectMapper.templates();
-        List<String> stages = templates.isEmpty() ? List.of() : projectMapper.templateStageNames(templates.getFirst().getId());
+        if (processTemplateId == null || processTemplateId.isBlank()) {
+            throw new IllegalArgumentException("请选择启用状态的流程模板");
+        }
+        List<String> stages = projectMapper.templateStageNames(processTemplateId);
+        if (stages.isEmpty()) {
+            throw new IllegalArgumentException("所选流程模板未配置阶段，请先维护流程模板阶段");
+        }
         int order = 1;
         for (String stage : stages) {
             projectMapper.insertStage(IdUtil.nanoId("st"), projectId, stage, order++, resolveDefault(null, "stage_status", "阶段状态"));
         }
+    }
+
+    private String resolveTemplateIdForProjectCreation(ProjectRequest request) {
+        if (!request.safeStages().isEmpty()) {
+            return stringValue(request.templateId());
+        }
+        String requestedTemplateId = stringValue(request.templateId());
+        if (requestedTemplateId != null) {
+            ProcessTemplateEntity selected = projectMapper.template(requestedTemplateId);
+            if (selected == null || !"启用".equals(selected.getStatus())) {
+                throw new IllegalArgumentException("请选择启用状态的流程模板");
+            }
+            return selected.getId();
+        }
+        List<ProcessTemplateEntity> activeTemplates = projectMapper.activeTemplates();
+        if (activeTemplates.isEmpty()) {
+            throw new IllegalArgumentException("暂无启用状态的流程模板，请先在流程模板中启用一个模板");
+        }
+        return activeTemplates.getFirst().getId();
     }
 
     private void replaceProjectMembers(String projectId, List<ProjectMemberRequest> requestedMembers, String managerAccount) {

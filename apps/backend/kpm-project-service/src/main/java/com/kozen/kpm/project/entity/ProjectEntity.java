@@ -10,6 +10,8 @@ public class ProjectEntity {
     private String modelName;
     private String managerUserId;
     private String managerAccount;
+    private String processTemplateId;
+    private String processTemplateName;
     private Boolean archived;
     private String description;
     private LocalDateTime createdAt;
@@ -27,6 +29,10 @@ public class ProjectEntity {
     public void setManagerUserId(String managerUserId) { this.managerUserId = managerUserId; }
     public String getManagerAccount() { return managerAccount; }
     public void setManagerAccount(String managerAccount) { this.managerAccount = managerAccount; }
+    public String getProcessTemplateId() { return processTemplateId; }
+    public void setProcessTemplateId(String processTemplateId) { this.processTemplateId = processTemplateId; }
+    public String getProcessTemplateName() { return processTemplateName; }
+    public void setProcessTemplateName(String processTemplateName) { this.processTemplateName = processTemplateName; }
     public Boolean getArchived() { return archived; }
     public void setArchived(Boolean archived) { this.archived = archived; }
     public String getDescription() { return description; }

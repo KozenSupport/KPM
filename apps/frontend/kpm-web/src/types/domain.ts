@@ -77,6 +77,8 @@ export type Project = {
   managerAccount?: string;
   managerName?: string;
   managerUserId?: string;
+  processTemplateId?: string;
+  processTemplateName?: string;
   description?: string;
   archived?: boolean;
   createdAt?: string;

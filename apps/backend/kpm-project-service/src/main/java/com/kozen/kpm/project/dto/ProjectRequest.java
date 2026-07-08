@@ -13,6 +13,7 @@ public record ProjectRequest(
         @NotBlank(message = "项目内部名称不能为空") @Size(max = 120, message = "项目内部名称不能超过120个字符") String internalName,
         @NotBlank(message = "Model名称不能为空") @Size(max = 120, message = "Model名称不能超过120个字符") String modelName,
         @NotBlank(message = "项目负责人不能为空") @Size(max = 128, message = "项目负责人账号不能超过128个字符") String managerAccount,
+        @Size(max = 80, message = "流程模板ID不能超过80个字符") String templateId,
         @Size(max = 2000, message = "项目描述不能超过2000个字符") String description,
         @Valid @Size(max = 200, message = "项目成员不能超过200项") List<ProjectMemberRequest> members,
         @Valid @Size(max = 80, message = "项目阶段不能超过80项") List<ProjectStageRequest> stages

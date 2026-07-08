@@ -11,6 +11,8 @@ public record ProjectDto(
         String managerUserId,
         String managerAccount,
         String managerName,
+        String processTemplateId,
+        String processTemplateName,
         Boolean archived,
         String description,
         LocalDateTime createdAt,

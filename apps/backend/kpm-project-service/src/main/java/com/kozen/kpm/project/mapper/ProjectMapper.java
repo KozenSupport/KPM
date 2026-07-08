@@ -33,21 +33,24 @@ import java.util.List;
 @Mapper
 public interface ProjectMapper {
     @Select("""
-            select id,
-                   external_name as externalName,
-                   internal_name as internalName,
-                   model_name as modelName,
-                   manager_user_id as managerUserId,
-                   manager_account as managerAccount,
-                   archived,
-                   description,
-                   created_at as createdAt,
-                   updated_at as updatedAt
-            from kpm_projects
-            where (cast(#{keyword} as text) is null or #{keyword} = '' or external_name ilike #{keywordLike} or internal_name ilike #{keywordLike} or model_name ilike #{keywordLike})
-              and (cast(#{archived,jdbcType=BOOLEAN} as boolean) is null or archived = #{archived,jdbcType=BOOLEAN})
-              and del_flag=0
-            order by created_at desc, external_name
+            select p.id,
+                   p.external_name as externalName,
+                   p.internal_name as internalName,
+                   p.model_name as modelName,
+                   p.manager_user_id as managerUserId,
+                   p.manager_account as managerAccount,
+                   p.process_template_id as processTemplateId,
+                   tpl.name as processTemplateName,
+                   p.archived,
+                   p.description,
+                   p.created_at as createdAt,
+                   p.updated_at as updatedAt
+            from kpm_projects p
+            left join kpm_process_templates tpl on tpl.id = p.process_template_id and tpl.del_flag=0
+            where (cast(#{keyword} as text) is null or #{keyword} = '' or p.external_name ilike #{keywordLike} or p.internal_name ilike #{keywordLike} or p.model_name ilike #{keywordLike})
+              and (cast(#{archived,jdbcType=BOOLEAN} as boolean) is null or p.archived = #{archived,jdbcType=BOOLEAN})
+              and p.del_flag=0
+            order by p.created_at desc, p.external_name
             """)
     List<ProjectEntity> list(@Param("keyword") String keyword, @Param("keywordLike") String keywordLike, @Param("archived") Boolean archived);
 
@@ -58,21 +61,24 @@ public interface ProjectMapper {
     }
 
     @Select("""
-            select id,
-                   external_name as externalName,
-                   internal_name as internalName,
-                   model_name as modelName,
-                   manager_user_id as managerUserId,
-                   manager_account as managerAccount,
-                   archived,
-                   description,
-                   created_at as createdAt,
-                   updated_at as updatedAt
-            from kpm_projects
-            where (cast(#{keyword} as text) is null or #{keyword} = '' or external_name ilike #{keywordLike} or internal_name ilike #{keywordLike} or model_name ilike #{keywordLike})
-              and (cast(#{archived,jdbcType=BOOLEAN} as boolean) is null or archived = #{archived,jdbcType=BOOLEAN})
-              and del_flag=0
-            order by created_at desc, id desc
+            select p.id,
+                   p.external_name as externalName,
+                   p.internal_name as internalName,
+                   p.model_name as modelName,
+                   p.manager_user_id as managerUserId,
+                   p.manager_account as managerAccount,
+                   p.process_template_id as processTemplateId,
+                   tpl.name as processTemplateName,
+                   p.archived,
+                   p.description,
+                   p.created_at as createdAt,
+                   p.updated_at as updatedAt
+            from kpm_projects p
+            left join kpm_process_templates tpl on tpl.id = p.process_template_id and tpl.del_flag=0
+            where (cast(#{keyword} as text) is null or #{keyword} = '' or p.external_name ilike #{keywordLike} or p.internal_name ilike #{keywordLike} or p.model_name ilike #{keywordLike})
+              and (cast(#{archived,jdbcType=BOOLEAN} as boolean) is null or p.archived = #{archived,jdbcType=BOOLEAN})
+              and p.del_flag=0
+            order by p.created_at desc, p.id desc
             limit #{limit} offset #{offset}
             """)
     List<ProjectEntity> pageRows(@Param("keyword") String keyword, @Param("keywordLike") String keywordLike, @Param("archived") Boolean archived, @Param("limit") int limit, @Param("offset") int offset);
@@ -99,17 +105,21 @@ public interface ProjectMapper {
     }
 
     @Select("""
-            select id,
-                   external_name as externalName,
-                   internal_name as internalName,
-                   model_name as modelName,
-                   manager_user_id as managerUserId,
-                   manager_account as managerAccount,
-                   archived,
-                   description,
-                   created_at as createdAt,
-                   updated_at as updatedAt
-            from kpm_projects where id=#{id} and del_flag=0
+            select p.id,
+                   p.external_name as externalName,
+                   p.internal_name as internalName,
+                   p.model_name as modelName,
+                   p.manager_user_id as managerUserId,
+                   p.manager_account as managerAccount,
+                   p.process_template_id as processTemplateId,
+                   tpl.name as processTemplateName,
+                   p.archived,
+                   p.description,
+                   p.created_at as createdAt,
+                   p.updated_at as updatedAt
+            from kpm_projects p
+            left join kpm_process_templates tpl on tpl.id = p.process_template_id and tpl.del_flag=0
+            where p.id=#{id} and p.del_flag=0
             """)
     ProjectEntity load(@Param("id") String id);
 
@@ -132,8 +142,8 @@ public interface ProjectMapper {
     String enumExactValue(@Param("enumType") String enumType, @Param("value") String value);
 
     @Insert("""
-            insert into kpm_projects (id, external_name, internal_name, model_name, manager_user_id, manager_account, archived, description)
-            values (#{command.id}, #{command.externalName}, #{command.internalName}, #{command.modelName}, #{command.managerUserId}, #{command.managerAccount}, false, #{command.description})
+            insert into kpm_projects (id, external_name, internal_name, model_name, manager_user_id, manager_account, process_template_id, archived, description)
+            values (#{command.id}, #{command.externalName}, #{command.internalName}, #{command.modelName}, #{command.managerUserId}, #{command.managerAccount}, cast(#{command.processTemplateId} as bigint), false, #{command.description})
             """)
     void insertProject(@Param("command") ProjectWriteCommand command);
 
@@ -577,6 +587,14 @@ public interface ProjectMapper {
 
     @Select("select id, name, scope, status, updated_at as updatedAt from kpm_process_templates where id=#{id} and del_flag=0")
     ProcessTemplateEntity template(@Param("id") String id);
+
+    @Select("""
+            select id, name, scope, status, updated_at as updatedAt
+            from kpm_process_templates
+            where status='启用' and del_flag=0
+            order by updated_at desc, name
+            """)
+    List<ProcessTemplateEntity> activeTemplates();
 
     @Select("select id from kpm_process_templates where id=#{id} and del_flag=0")
     List<String> templateIds(@Param("id") String id);

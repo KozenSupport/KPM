@@ -1,6 +1,6 @@
 import { PlusOutlined } from '@ant-design/icons';
 import { Button, Card, Form, Input, Modal, Select, Space, Table, Tag, message } from 'antd';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ActionButtons } from '../components/common/ActionButtons';
@@ -25,6 +25,25 @@ export function ProjectsPage() {
   const [filters, setFilters] = useState({ keyword: '', archived: 'false' });
   const [pagination, setPagination] = useState({ current: 1, pageSize: 12 });
   const { isLocked, runLocked } = useActionLock();
+  const templates = data?.templates || [];
+  const activeTemplates = useMemo(
+    () => templates.filter((item) => item.status === '启用'),
+    [templates],
+  );
+  const templateOptions = useMemo(
+    () => templates.map((item) => ({
+      label: `${item.name || item.id}${item.scope ? ` / ${item.scope}` : ''}${item.status ? `（${item.status}）` : ''}`,
+      value: String(item.id),
+    })),
+    [templates],
+  );
+  const activeTemplateOptions = useMemo(
+    () => activeTemplates.map((item) => ({
+      label: `${item.name || item.id}${item.scope ? ` / ${item.scope}` : ''} · ${(item.stages || []).length} 个阶段`,
+      value: String(item.id),
+    })),
+    [activeTemplates],
+  );
   const projectPageQuery = useQuery({
     queryKey: ['kpm', 'projects-page', filters, pagination.current, pagination.pageSize],
     queryFn: () => kpmApi.projectsPage({
@@ -46,6 +65,7 @@ export function ProjectsPage() {
   function openCreate() {
     setEditing(null);
     form.resetFields();
+    form.setFieldsValue({ templateId: activeTemplates[0]?.id ? String(activeTemplates[0].id) : undefined });
     setModalOpen(true);
   }
 
@@ -56,6 +76,7 @@ export function ProjectsPage() {
       internalName: project.internalName,
       modelName: project.modelName,
       managerAccount: project.managerAccount,
+      templateId: project.processTemplateId,
       description: project.description,
       members: (project.members || []).map((item) => item.account || item.userAccount).filter(Boolean),
     });
@@ -97,6 +118,7 @@ export function ProjectsPage() {
               { title: '项目名称', dataIndex: 'externalName', ellipsis: true, render: (name, row) => <button className="link-button truncate" type="button" onClick={() => navigate(`/projects/${row.id}`, { state: { from: '/projects' } })}>{name}</button> },
               { title: '内部名称', dataIndex: 'internalName', ellipsis: true },
               { title: 'Model', dataIndex: 'modelName', width: 120, ellipsis: true },
+              { title: '流程模板', dataIndex: 'processTemplateName', width: 150, ellipsis: true, render: (value) => value || '-' },
               { title: '负责人', dataIndex: 'managerName', width: 120, render: (value, row) => value || row.managerAccount || '-' },
               { title: '成员', dataIndex: 'members', width: 90, render: (members = []) => <Tag>{members.length} 人</Tag> },
               { title: 'SKU', dataIndex: 'skus', width: 80, render: (skus = []) => <Tag>{skus.length}</Tag> },
@@ -110,6 +132,20 @@ export function ProjectsPage() {
             <Form.Item name="internalName" label="内部名称" rules={[validationRules.max(120)]}><Input /></Form.Item>
             <Form.Item name="modelName" label="Model 名称" rules={[validationRules.max(80)]}><Input /></Form.Item>
             <Form.Item name="managerAccount" label="项目负责人" rules={[validationRules.required('请选择项目负责人')]}><UserSelect bootstrap={data?.bootstrap} /></Form.Item>
+            <Form.Item
+              name="templateId"
+              label="流程模板"
+              rules={editing ? [] : [validationRules.required('请选择流程模板')]}
+              extra={editing ? '编辑项目不会重新套用模板；阶段请在项目详情中维护。' : '创建项目时会按所选模板初始化阶段。'}
+            >
+              <Select
+                showSearch
+                disabled={Boolean(editing)}
+                placeholder={activeTemplateOptions.length ? '请选择流程模板' : '请先在流程模板中启用一个模板'}
+                optionFilterProp="label"
+                options={editing ? templateOptions : activeTemplateOptions}
+              />
+            </Form.Item>
             <Form.Item name="members" label="项目成员"><UserSelect bootstrap={data?.bootstrap} mode="multiple" placeholder="输入姓名或邮箱搜索成员" /></Form.Item>
             <Form.Item name="description" label="项目说明" rules={[validationRules.max(1000)]}><Input.TextArea rows={4} /></Form.Item>
           </Form>

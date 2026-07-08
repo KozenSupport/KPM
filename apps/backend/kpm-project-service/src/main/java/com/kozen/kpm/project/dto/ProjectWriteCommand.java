@@ -8,5 +8,6 @@ public record ProjectWriteCommand(
         String modelName,
         String managerUserId,
         String managerAccount,
+        String processTemplateId,
         String description
 ) {}

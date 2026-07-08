@@ -192,6 +192,7 @@ CREATE TABLE kpm_projects (
   model_name TEXT NOT NULL,
   manager_user_id BIGINT REFERENCES kpm_users(id),
   manager_account TEXT NOT NULL,
+  process_template_id BIGINT REFERENCES kpm_process_templates(id),
   archived BOOLEAN NOT NULL DEFAULT FALSE,
   description TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -537,6 +538,7 @@ CREATE INDEX IF NOT EXISTS idx_kpm_enum_items_lookup ON kpm_enum_items (enum_typ
 CREATE INDEX IF NOT EXISTS idx_kpm_enum_items_order ON kpm_enum_items (enum_type, active, del_flag, sort_order, id);
 CREATE INDEX IF NOT EXISTS idx_kpm_projects_list ON kpm_projects (del_flag, archived, created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_kpm_projects_manager ON kpm_projects (manager_user_id, del_flag);
+CREATE INDEX IF NOT EXISTS idx_kpm_projects_process_template ON kpm_projects (process_template_id, del_flag);
 CREATE INDEX IF NOT EXISTS idx_kpm_project_skus_project ON kpm_project_skus (project_id, active, del_flag, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_kpm_project_members_project ON kpm_project_members (project_id, del_flag, role_name);
 CREATE INDEX IF NOT EXISTS idx_kpm_project_members_user ON kpm_project_members (user_id, del_flag, project_id);
