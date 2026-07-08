@@ -543,9 +543,10 @@ public interface ProjectMapper {
     @Insert("""
             insert into kpm_customer_portal_messages
             (customer_id, contact_id, contact_email, title, content, message_type, project_id, announcement_id)
-            select c.id,
+            select distinct on (lower(trim(cc.email)))
+                   c.id,
                    cc.id,
-                   lower(cc.email),
+                   lower(trim(cc.email)),
                    #{title},
                    #{content},
                    'announcement',
@@ -553,8 +554,9 @@ public interface ProjectMapper {
                    #{announcementId}
             from kpm_project_customers pc
             join kpm_customers c on c.id=pc.customer_id and c.del_flag=0
-            join kpm_customer_contacts cc on cc.customer_id=c.id and cc.del_flag=0 and cc.email is not null and cc.email <> ''
+            join kpm_customer_contacts cc on cc.customer_id=c.id and cc.del_flag=0 and cc.email is not null and trim(cc.email) <> ''
             where pc.project_id=#{projectId} and pc.del_flag=0
+            order by lower(trim(cc.email)), cc.id
             """)
     void insertCustomerPortalMessagesForAnnouncement(@Param("projectId") String projectId, @Param("announcementId") String announcementId, @Param("title") String title, @Param("content") String content);
 

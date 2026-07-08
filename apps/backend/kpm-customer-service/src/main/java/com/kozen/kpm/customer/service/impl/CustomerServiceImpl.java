@@ -29,7 +29,11 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /** Default customer service implementation with typed DTO/entity boundaries. */
 @Service
@@ -179,9 +183,7 @@ public class CustomerServiceImpl implements CustomerService {
         if (publisherName == null || publisherName.isBlank()) {
             publisherName = "KPM";
         }
-        List<CustomerContactEntity> contacts = customerMapper.contacts(id).stream()
-                .filter(contact -> contact.email() != null && !contact.email().isBlank())
-                .toList();
+        List<CustomerContactEntity> contacts = uniqueContactsByEmail(customerMapper.contacts(id));
         if (contacts.isEmpty()) {
             throw new IllegalArgumentException("该客户没有配置可通知的联系人邮箱");
         }
@@ -189,13 +191,28 @@ public class CustomerServiceImpl implements CustomerService {
         int portalMessageCount = 0;
         int emailAttemptCount = 0;
         for (CustomerContactEntity contact : contacts) {
-            customerMapper.insertCustomerPortalNotification(id, contact.id(), contact.email(), messageTitle, content, publisherName);
+            customerMapper.insertCustomerPortalNotification(id, contact.id(), normalizeEmail(contact.email()), messageTitle, content, publisherName);
             portalMessageCount += 1;
             if (sendCustomerNotificationMail(customer, contact, title, content, publisherName)) {
                 emailAttemptCount += 1;
             }
         }
         return new CustomerNotificationResultDto(id, contacts.size(), portalMessageCount, emailAttemptCount);
+    }
+
+    private List<CustomerContactEntity> uniqueContactsByEmail(List<CustomerContactEntity> contacts) {
+        Map<String, CustomerContactEntity> uniqueByEmail = new LinkedHashMap<>();
+        for (CustomerContactEntity contact : contacts) {
+            String email = normalizeEmail(contact.email());
+            if (!email.isBlank()) {
+                uniqueByEmail.putIfAbsent(email, contact);
+            }
+        }
+        return new ArrayList<>(uniqueByEmail.values());
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
     }
 
     private String resolveDefault(Object value, String enumType, String label) {

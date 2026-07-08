@@ -514,11 +514,13 @@ export function ProjectDetailPage() {
     confirmSubmit(
       "确认发布该项目公告？发布后，关联客户联系人将在客户门户看到公告，并收到门户消息。",
       async () => {
-        await kpmApi.publishProjectAnnouncement(id, values);
-        message.success("公告已发布给关联客户");
-        setAnnouncementModal(false);
-        announcementForm.resetFields();
-        refreshProjectDetail();
+        await runLocked("project-announcement-publish", async () => {
+          await kpmApi.publishProjectAnnouncement(id, values);
+          message.success("公告已发布给关联客户");
+          setAnnouncementModal(false);
+          announcementForm.resetFields();
+          refreshProjectDetail();
+        });
       },
     );
   }
@@ -1371,6 +1373,7 @@ export function ProjectDetailPage() {
               onCancel={() => setAnnouncementModal(false)}
               onOk={submitAnnouncement}
               okText="发布"
+              confirmLoading={isLocked("project-announcement-publish")}
               width={680}
             >
               <Form

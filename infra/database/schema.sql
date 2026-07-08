@@ -601,6 +601,10 @@ CREATE INDEX IF NOT EXISTS idx_kpm_customer_portal_messages_announcement ON kpm_
 CREATE INDEX IF NOT EXISTS idx_kpm_customer_email_outbox_status_time ON kpm_customer_email_outbox (status, del_flag, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_kpm_customer_portal_messages_contact_time ON kpm_customer_portal_messages (lower(contact_email), del_flag, created_at DESC);
 
+CREATE UNIQUE INDEX IF NOT EXISTS uk_kpm_portal_messages_announcement_contact
+  ON kpm_customer_portal_messages (announcement_id, lower(trim(contact_email)))
+  WHERE announcement_id IS NOT NULL AND del_flag=0;
+
 -- Knowledge base: internal articles and customer portal visibility scopes.
 CREATE TABLE IF NOT EXISTS kpm_knowledge_articles (
   id BIGINT PRIMARY KEY,

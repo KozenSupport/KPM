@@ -541,9 +541,10 @@ public interface TaskMapper {
     @Insert("""
             insert into kpm_customer_portal_messages
             (customer_id, contact_id, contact_email, title, content, message_type, project_id, task_id)
-            select c.id,
+            select distinct on (lower(trim(cc.email)))
+                   c.id,
                    cc.id,
-                   lower(cc.email),
+                   lower(trim(cc.email)),
                    #{title},
                    #{content},
                    'task',
@@ -551,17 +552,19 @@ public interface TaskMapper {
                    t.id
             from kpm_tasks t
             join kpm_customers c on c.id=t.customer_id and c.del_flag=0
-            join kpm_customer_contacts cc on cc.customer_id=c.id and cc.del_flag=0 and cc.email is not null and cc.email <> ''
+            join kpm_customer_contacts cc on cc.customer_id=c.id and cc.del_flag=0 and cc.email is not null and trim(cc.email) <> ''
             where t.id=#{taskId} and t.customer_id is not null and t.del_flag=0
+            order by lower(trim(cc.email)), cc.id
             """)
     void insertPortalMessagesForTaskUpdate(@Param("taskId") String taskId, @Param("title") String title, @Param("content") String content);
 
     @Insert("""
             insert into kpm_customer_portal_messages
             (customer_id, contact_id, contact_email, title, content, message_type, project_id, task_id)
-            select c.id,
+            select distinct on (lower(trim(cc.email)))
+                   c.id,
                    cc.id,
-                   lower(cc.email),
+                   lower(trim(cc.email)),
                    #{title},
                    #{content},
                    'task_comment',
@@ -569,15 +572,17 @@ public interface TaskMapper {
                    t.id
             from kpm_tasks t
             join kpm_customers c on c.id=t.customer_id and c.del_flag=0
-            join kpm_customer_contacts cc on cc.customer_id=c.id and cc.del_flag=0 and cc.email is not null and cc.email <> ''
+            join kpm_customer_contacts cc on cc.customer_id=c.id and cc.del_flag=0 and cc.email is not null and trim(cc.email) <> ''
             where t.id=#{taskId} and t.customer_id is not null and t.del_flag=0
+            order by lower(trim(cc.email)), cc.id
             """)
     void insertPortalMessagesForExternalComment(@Param("taskId") String taskId, @Param("title") String title, @Param("content") String content);
 
     @Insert("""
             insert into kpm_customer_email_outbox
             (recipient_email, recipient_name, subject, content, message_type, related_project_id, related_task_id, status, creator)
-            select lower(cc.email),
+            select distinct on (lower(trim(cc.email)))
+                   lower(trim(cc.email)),
                    cc.name,
                    #{subject},
                    #{content},
@@ -588,8 +593,9 @@ public interface TaskMapper {
                    'task-service'
             from kpm_tasks t
             join kpm_customers c on c.id=t.customer_id and c.del_flag=0
-            join kpm_customer_contacts cc on cc.customer_id=c.id and cc.del_flag=0 and cc.email is not null and cc.email <> ''
+            join kpm_customer_contacts cc on cc.customer_id=c.id and cc.del_flag=0 and cc.email is not null and trim(cc.email) <> ''
             where t.id=#{taskId} and t.customer_id is not null and t.del_flag=0
+            order by lower(trim(cc.email)), cc.id
             """)
     void insertCustomerEmailOutboxForExternalComment(@Param("taskId") String taskId, @Param("subject") String subject, @Param("content") String content);
 
