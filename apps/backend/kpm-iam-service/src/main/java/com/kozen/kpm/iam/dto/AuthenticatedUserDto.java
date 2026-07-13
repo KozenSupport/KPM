@@ -18,7 +18,7 @@ public record AuthenticatedUserDto(
         @Schema(description = "用户显示名称", example = "系统管理员")
         String name,
 
-        @Schema(description = "账号状态", example = "启用")
+        @Schema(description = "账号状态Code", example = "ACTIVE")
         String status,
 
         @Schema(description = "用户所属部门名称列表")

@@ -28,11 +28,14 @@ public interface CustomerMapper {
 
     @Select("""
             select value from kpm_enum_items
-            where enum_type=#{enumType} and active=true
+            where enum_type=#{enumType} and active=true and del_flag=0
             order by sort_order, id
             limit 1
             """)
     String defaultEnumValue(@Param("enumType") String enumType);
+
+    @Select("select value from kpm_enum_items where enum_type=#{enumType} and value=#{value} and active=true and del_flag=0 limit 1")
+    String enumExactValue(@Param("enumType") String enumType, @Param("value") String value);
 
     @Select("""
             select id,

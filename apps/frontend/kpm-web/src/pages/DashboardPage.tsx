@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useKpmData } from '../hooks/useKpmData';
 import { kpmApi } from '../services/kpmApi';
 import type { Project } from '../types';
+import { EnumCode, EnumType } from '../types/businessEnums';
 import { resolveTaskUser } from '../utils/taskScope';
 
 export function DashboardPage() {
@@ -18,7 +19,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
 
   const completedStatusValues = useMemo(() => (data?.bootstrap?.enumItems || [])
-      .filter((item) => item.enumType === 'task_status' && item.value === '已完成')
+      .filter((item) => item.enumType === EnumType.taskStatus && item.value === EnumCode.completed)
       .map((item) => item.value)
       .filter(Boolean), [data?.bootstrap?.enumItems]);
   const currentTaskUser = useMemo(() => resolveTaskUser(data?.bootstrap?.users || [], user), [data?.bootstrap?.users, user]);

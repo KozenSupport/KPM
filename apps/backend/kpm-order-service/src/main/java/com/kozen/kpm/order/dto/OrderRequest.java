@@ -1,5 +1,6 @@
 package com.kozen.kpm.order.dto;
 
+import com.kozen.kpm.common.util.BusinessEnumCodes;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -27,8 +28,10 @@ public record OrderRequest(
         String skuId,
         @NotBlank(message = "订单类型不能为空")
         @Size(max = 40, message = "订单类型不能超过40个字符")
+        @Pattern(regexp = BusinessEnumCodes.CODE_PATTERN, message = "订单类型必须使用枚举Code")
         String orderType,
         @Size(max = 40, message = "订单状态不能超过40个字符")
+        @Pattern(regexp = "^$|" + BusinessEnumCodes.CODE_PATTERN, message = "订单状态必须使用枚举Code")
         String status,
         @NotNull(message = "数量不能为空")
         @Positive(message = "数量必须大于0")
@@ -45,6 +48,7 @@ public record OrderRequest(
         String softwareVersion,
         @NotBlank(message = "币种不能为空")
         @Size(max = 10, message = "币种不能超过10个字符")
+        @Pattern(regexp = BusinessEnumCodes.CODE_PATTERN, message = "币种必须使用枚举Code")
         String currency,
         @NotNull(message = "单价不能为空")
         @DecimalMin(value = "0.00", message = "单价不能小于0")

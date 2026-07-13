@@ -15,6 +15,7 @@ import com.kozen.kpm.analytics.entity.ResourceMapRowWithGeo;
 import com.kozen.kpm.analytics.mapper.AnalyticsMapper;
 import com.kozen.kpm.analytics.service.AnalyticsService;
 import com.kozen.kpm.common.cache.RedisJsonCache;
+import com.kozen.kpm.common.util.BusinessEnumCodes;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,7 +53,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     @Override
     public DashboardStatsDto dashboard() {
-        return redisCache.get(CACHE_PREFIX + "dashboard:v1", DashboardStatsDto.class,
+        return redisCache.get(CACHE_PREFIX + "dashboard:v2", DashboardStatsDto.class,
                 cacheProperties.dashboardTtl(),
                 cacheProperties.dashboardJitter(),
                 () -> new DashboardStatsDto(
@@ -66,7 +67,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     @Override
     public List<OrderStatsDto> orderStats(String targetCurrency) {
         String normalizedTargetCurrency = analyticsConverter.normalizeTargetCurrency(targetCurrency);
-        return redisCache.get(CACHE_PREFIX + "order-stats:" + normalizedTargetCurrency + ":v1", ORDER_STATS_LIST,
+        return redisCache.get(CACHE_PREFIX + "order-stats:" + normalizedTargetCurrency + ":v2", ORDER_STATS_LIST,
                 cacheProperties.orderStatsTtl(),
                 cacheProperties.orderStatsJitter(),
                 () -> analyticsMapper.orderStats().stream()
@@ -77,7 +78,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     @Override
     @Transactional
     public List<ResourceMapDto> resourceMap() {
-        return redisCache.get(CACHE_PREFIX + "resource-map:v1", RESOURCE_MAP_LIST,
+        return redisCache.get(CACHE_PREFIX + "resource-map:v2", RESOURCE_MAP_LIST,
                 cacheProperties.resourceMapTtl(),
                 cacheProperties.resourceMapJitter(),
                 () -> analyticsMapper.resourceMap().stream()
@@ -121,7 +122,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     @Override
     public List<SupportStatsDto> support(String customerId) {
         String cid = customerId == null || customerId.isBlank() ? "" : customerId;
-        return redisCache.get(CACHE_PREFIX + "support:" + cid + ":v1", SUPPORT_STATS_LIST,
+        return redisCache.get(CACHE_PREFIX + "support:" + cid + ":v2", SUPPORT_STATS_LIST,
                 cacheProperties.supportStatsTtl(),
                 cacheProperties.supportStatsJitter(),
                 () -> analyticsMapper.support(cid).stream()
@@ -131,7 +132,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     @Override
     public List<CustomerActivityDto> activity() {
-        return redisCache.get(CACHE_PREFIX + "activity:v1", ACTIVITY_LIST,
+        return redisCache.get(CACHE_PREFIX + "activity:v2", ACTIVITY_LIST,
                 cacheProperties.activityTtl(),
                 cacheProperties.activityJitter(),
                 () -> analyticsMapper.activity().stream()
@@ -140,10 +141,10 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     }
 
     private String classify(CustomerActivityRow row) {
-        if ("已停用".equals(row.getStatus())) return "遗弃";
-        if (row.getLastOrderDate() != null || defaultLong(row.getOpenTaskCount()) > 0) return "活跃";
-        if (row.getLastFollowupAt() == null) return "停滞";
-        return "观察";
+        if (BusinessEnumCodes.CUSTOMER_STATUS_INACTIVE.equals(row.getStatus())) return BusinessEnumCodes.ACTIVITY_ABANDONED;
+        if (row.getLastOrderDate() != null || defaultLong(row.getOpenTaskCount()) > 0) return BusinessEnumCodes.ACTIVITY_ACTIVE;
+        if (row.getLastFollowupAt() == null) return BusinessEnumCodes.ACTIVITY_STALLED;
+        return BusinessEnumCodes.ACTIVITY_OBSERVING;
     }
 
     private long defaultLong(Long value) {

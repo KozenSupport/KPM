@@ -74,7 +74,7 @@ public interface ResourceMapper {
     @Update("update kpm_users set account=#{account}, email=#{email}, name=#{name}, status=#{status}, update_time=current_timestamp where id=#{id} and del_flag=0")
     void updateUserRow(@Param("id") String id, @Param("account") String account, @Param("email") String email, @Param("name") String name, @Param("status") String status);
 
-    @Update("update kpm_users set del_flag=1, status='停用', update_time=current_timestamp where id=#{id} and del_flag=0")
+    @Update("update kpm_users set del_flag=1, status='INACTIVE', update_time=current_timestamp where id=#{id} and del_flag=0")
     void deleteUser(@Param("id") String id);
 
     @Update("update kpm_user_departments set del_flag=1, update_time=current_timestamp where user_id=#{userId} and del_flag=0")
@@ -144,7 +144,7 @@ public interface ResourceMapper {
     @Update("update kpm_departments set name=#{name}, status=#{status}, update_time=current_timestamp where id=#{id} and del_flag=0")
     void updateDepartmentRow(@Param("id") String id, @Param("name") String name, @Param("status") String status);
 
-    @Update("update kpm_departments set del_flag=1, status='停用', update_time=current_timestamp where id=#{id} and del_flag=0")
+    @Update("update kpm_departments set del_flag=1, status='INACTIVE', update_time=current_timestamp where id=#{id} and del_flag=0")
     void deleteDepartment(@Param("id") String id);
 
     @Select("select id, name, role_type as roleType, status from kpm_roles where del_flag=0 order by name")
@@ -177,7 +177,7 @@ public interface ResourceMapper {
     @Update("update kpm_roles set name=#{name}, role_type=#{roleType}, status=#{status}, update_time=current_timestamp where id=#{id} and del_flag=0")
     void updateRoleRow(@Param("id") String id, @Param("name") String name, @Param("roleType") String roleType, @Param("status") String status);
 
-    @Update("update kpm_roles set del_flag=1, status='停用', update_time=current_timestamp where id=#{id} and del_flag=0")
+    @Update("update kpm_roles set del_flag=1, status='INACTIVE', update_time=current_timestamp where id=#{id} and del_flag=0")
     void deleteRole(@Param("id") String id);
 
     @Update("update kpm_role_permissions set del_flag=1, update_time=current_timestamp where role_id=#{roleId} and del_flag=0")
@@ -222,6 +222,9 @@ public interface ResourceMapper {
     @Select("select id, from_status as fromStatus, to_status as toStatus from kpm_task_status_transitions where id=#{id} and del_flag=0")
     TaskStatusTransitionEntity taskStatusTransition(@Param("id") String id);
 
+    @Select("select count(1) from kpm_enum_items where enum_type=#{enumType} and value=#{value} and active=true and del_flag=0")
+    int activeEnumValueCount(@Param("enumType") String enumType, @Param("value") String value);
+
     @Select("select id from kpm_task_status_transitions where from_status=#{fromStatus} and to_status=#{toStatus} and del_flag=0")
     List<String> taskStatusTransitionIdsByPair(@Param("fromStatus") Object fromStatus, @Param("toStatus") Object toStatus);
 
@@ -257,20 +260,19 @@ public interface ResourceMapper {
     void insertEnumRow(@Param("id") String id, @Param("enumType") String enumType, @Param("name") String name, @Param("value") String value, @Param("nameEn") String nameEn, @Param("active") Boolean active, @Param("sortOrder") Integer sortOrder);
 
     default void updateEnum(String id, EnumItemRequest request) {
-        updateEnumRow(id, request.name(), request.normalizedValue(), request.normalizedNameEn(), request.normalizedActive(), request.normalizedSortOrder());
+        updateEnumRow(id, request.name(), request.normalizedNameEn(), request.normalizedActive(), request.normalizedSortOrder());
     }
 
     @Update("""
             update kpm_enum_items
             set name=#{name},
-                value=#{value},
                 label_en=#{nameEn},
                 active=#{active},
                 sort_order=#{sortOrder},
                 update_time=current_timestamp
             where id=#{id} and del_flag=0
             """)
-    void updateEnumRow(@Param("id") String id, @Param("name") String name, @Param("value") String value, @Param("nameEn") String nameEn, @Param("active") Boolean active, @Param("sortOrder") Integer sortOrder);
+    void updateEnumRow(@Param("id") String id, @Param("name") String name, @Param("nameEn") String nameEn, @Param("active") Boolean active, @Param("sortOrder") Integer sortOrder);
 
     @Update("update kpm_enum_items set del_flag=1, active=false, update_time=current_timestamp where id=#{id} and del_flag=0")
     void deleteEnum(@Param("id") String id);

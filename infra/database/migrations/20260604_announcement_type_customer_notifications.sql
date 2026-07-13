@@ -1,11 +1,11 @@
 -- Announcement type support and customer-level portal notification sending.
 
 ALTER TABLE kpm_project_announcements
-  ADD COLUMN IF NOT EXISTS announcement_type TEXT NOT NULL DEFAULT '普通公告';
+  ADD COLUMN IF NOT EXISTS announcement_type TEXT NOT NULL DEFAULT 'GENERAL';
 
 INSERT INTO kpm_enum_items (id, enum_type, name, value, label_en, active, sort_order) VALUES
-  (5060,'project_announcement_type','普通公告','普通公告','General Notice',true,10),
-  (5061,'project_announcement_type','产品 EOL 公告','产品EOL公告','Product EOL Notice',true,20)
+  (5060,'project_announcement_type','普通公告','GENERAL','General Notice',true,10),
+  (5061,'project_announcement_type','产品 EOL 公告','PRODUCT_EOL','Product EOL Notice',true,20)
 ON CONFLICT (enum_type, value) DO UPDATE SET
   name=excluded.name,
   label_en=excluded.label_en,
@@ -15,7 +15,7 @@ ON CONFLICT (enum_type, value) DO UPDATE SET
   update_time=current_timestamp;
 
 INSERT INTO kpm_permissions (id, code, name, permission_type, target, location)
-VALUES (3098,'button:customer-detail:send-notification','客户详情 / 发送通知','按钮权限','发送通知','客户详情')
+VALUES (3098,'button:customer-detail:send-notification','客户详情 / 发送通知','BUTTON','发送通知','客户详情')
 ON CONFLICT (code) DO UPDATE SET
   name=excluded.name,
   permission_type=excluded.permission_type,

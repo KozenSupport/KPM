@@ -26,8 +26,7 @@ export type User = {
 export type Department = { id: Id; name: string; status?: string; description?: string; active?: boolean; userCount?: number };
 export type Role = { id: Id; name: string; roleType?: string; status?: string; description?: string; permissions?: string[]; active?: boolean; userCount?: number };
 export type Permission = { id?: string; key?: string; code?: string; name: string; type?: string; permissionType?: string; target?: string; location?: string };
-export type EnumItem = {
-  id: Id;
+export type BusinessEnumItem = {
   enumType: string;
   name?: string;
   value: string;
@@ -35,6 +34,7 @@ export type EnumItem = {
   active?: boolean;
   sortOrder?: number;
 };
+export type EnumItem = BusinessEnumItem & { id: Id };
 export type TaskStatusTransition = { id: Id; fromStatus: string; toStatus: string };
 
 export type BootstrapData = {

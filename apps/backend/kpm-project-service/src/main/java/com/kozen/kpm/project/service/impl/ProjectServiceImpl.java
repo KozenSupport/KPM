@@ -2,7 +2,7 @@ package com.kozen.kpm.project.service.impl;
 
 import com.kozen.kpm.common.api.PageResult;
 import com.kozen.kpm.common.dto.FileMetadataRequest;
-import com.kozen.kpm.common.util.BusinessEnumValues;
+import com.kozen.kpm.common.util.BusinessEnumCodes;
 import com.kozen.kpm.common.util.IdUtil;
 import com.kozen.kpm.common.util.JsonUtil;
 import com.kozen.kpm.common.util.PageParamUtil;
@@ -119,7 +119,7 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectDto updateStage(String stageId, StageStatusRequest request, String operatorAccount) {
         ProjectStageEntity stage = requireStage(stageId);
         assertStageStatusOperator(stageId, operatorAccount);
-        projectMapper.updateStageStatus(stageId, request.status());
+        projectMapper.updateStageStatus(stageId, requiredEnumValue("stage_status", request.status(), "阶段状态"));
         return detail(stage.getProjectId());
     }
 
@@ -194,7 +194,11 @@ public class ProjectServiceImpl implements ProjectService {
     @Transactional
     public ProjectDto updateProjectCustomerStatus(String projectId, String customerId, ProjectCustomerStatusRequest request) {
         ensureProjectExists(projectId);
-        projectMapper.updateProjectCustomerStatus(projectId, customerId, request.projectStatus());
+        projectMapper.updateProjectCustomerStatus(
+                projectId,
+                customerId,
+                requiredEnumValue("customer_project_status", request.projectStatus(), "客户项目状态")
+        );
         return detail(projectId);
     }
 
@@ -335,24 +339,26 @@ public class ProjectServiceImpl implements ProjectService {
         ensureProjectExists(projectId);
         String requirementId = nextRequirementId();
         String taskId = null;
+        String requirementPriority = requiredEnumValue("priority", request.priority(), "需求优先级");
         String requirementStatus = resolveDefault(request.status(), "requirement_status", "需求状态");
         if (request.createTask() == null || request.createTask()) {
             taskId = IdUtil.nanoId("task");
             String taskNo = nextTaskNo(customerId);
             UserLookupEntity creator = requireUser(request.creator(), "需求关联任务创建者");
-            String taskCategory = requiredEnumValue("task_category", BusinessEnumValues.TASK_CATEGORY_REQUIREMENT, "需求任务分类");
+            String taskCategory = requiredEnumValue("task_category", BusinessEnumCodes.TASK_CATEGORY_REQUIREMENT, "需求任务分类");
             String taskStatus = resolveDefault(null, "task_status", "任务状态");
-            projectMapper.insertRequirementTask(new RequirementTaskWriteCommand(taskId, taskNo, projectId, customerId, request.title(), request.userStory(), request.priority(), null, taskCategory, taskStatus, "需求创建自动生成", creator.getId(), creator.getName()));
+            String taskPriority = requiredEnumValue("task_priority", request.priority(), "任务优先级");
+            projectMapper.insertRequirementTask(new RequirementTaskWriteCommand(taskId, taskNo, projectId, customerId, request.title(), request.userStory(), taskPriority, null, taskCategory, taskStatus, BusinessEnumCodes.TASK_SOURCE_REQUIREMENT_AUTO_CREATED, creator.getId(), creator.getName()));
             projectMapper.insertRequirementTaskAssignee(taskId, creator.getId(), creator.getName());
         }
-        projectMapper.insertRequirement(new RequirementWriteCommand(requirementId, projectId, customerId, request.title(), request.userStory(), request.businessValue(), request.acceptance(), request.priority(), requirementStatus, request.proposer(), request.creator(), null, taskId));
+        projectMapper.insertRequirement(new RequirementWriteCommand(requirementId, projectId, customerId, request.title(), request.userStory(), request.businessValue(), request.acceptance(), requirementPriority, requirementStatus, request.proposer(), request.creator(), null, taskId));
         return projectConverter.toRequirementDto(projectMapper.requirement(requirementId));
     }
 
     @Override
     @Transactional
     public RequirementDto voidRequirement(String id) {
-        String voidStatus = requiredEnumValue("requirement_status", BusinessEnumValues.REQUIREMENT_STATUS_VOID, "需求作废状态");
+        String voidStatus = requiredEnumValue("requirement_status", BusinessEnumCodes.REQUIREMENT_STATUS_VOIDED, "需求作废状态");
         projectMapper.voidRequirement(id, voidStatus);
         return projectConverter.toRequirementDto(projectMapper.requirement(id));
     }
@@ -451,7 +457,7 @@ public class ProjectServiceImpl implements ProjectService {
         String requestedTemplateId = stringValue(request.templateId());
         if (requestedTemplateId != null) {
             ProcessTemplateEntity selected = projectMapper.template(requestedTemplateId);
-            if (selected == null || !"启用".equals(selected.getStatus())) {
+            if (selected == null || !BusinessEnumCodes.ACTIVE.equals(selected.getStatus())) {
                 throw new IllegalArgumentException("请选择启用状态的流程模板");
             }
             return selected.getId();
@@ -468,13 +474,10 @@ public class ProjectServiceImpl implements ProjectService {
 
     private String normalizeTemplateStatus(String rawStatus) {
         String status = ValidationUtil.requireText(rawStatus, "模板状态", 20);
-        if ("启用".equals(status)) {
-            return "启用";
+        if (BusinessEnumCodes.ACTIVE.equals(status) || BusinessEnumCodes.INACTIVE.equals(status)) {
+            return status;
         }
-        if ("停用".equals(status) || "未启用".equals(status) || "草稿".equals(status)) {
-            return "停用";
-        }
-        throw new IllegalArgumentException("模板状态只能是启用或停用");
+        throw new IllegalArgumentException("模板状态只能是ACTIVE或INACTIVE");
     }
 
     private void replaceProjectMembers(String projectId, List<ProjectMemberRequest> requestedMembers, String managerAccount) {
@@ -561,7 +564,18 @@ public class ProjectServiceImpl implements ProjectService {
 
     private String resolveDefault(Object value, String enumType, String label) {
         if (value != null && !String.valueOf(value).isBlank()) {
-            return String.valueOf(value);
+            return requiredEnumValue(enumType, String.valueOf(value), label);
+        }
+        String stableDefault = switch (enumType) {
+            case "stage_status" -> BusinessEnumCodes.STAGE_STATUS_NOT_STARTED;
+            case "customer_project_status" -> BusinessEnumCodes.CUSTOMER_PROJECT_OPPORTUNITY_DISCOVERY;
+            case "project_announcement_type" -> BusinessEnumCodes.ANNOUNCEMENT_TYPE_GENERAL;
+            case "requirement_status" -> BusinessEnumCodes.REQUIREMENT_STATUS_PENDING_REVIEW;
+            case "task_status" -> BusinessEnumCodes.TASK_STATUS_PENDING;
+            default -> null;
+        };
+        if (stableDefault != null) {
+            return requiredEnumValue(enumType, stableDefault, label);
         }
         String defaultValue = projectMapper.defaultEnumValue(enumType);
         if (defaultValue == null || defaultValue.isBlank()) {

@@ -276,6 +276,10 @@ services:
     container_name: kpm-frontend
     env_file:
       - ../../../.env
+    environment:
+      # Browser requests stay same-origin; Vite preview proxies them over the Compose network.
+      VITE_KPM_API_BASE: ""
+      KPM_DEV_PROXY_TARGET: http://gateway:8080
     working_dir: /workspace
     volumes:
       - ../../../apps/frontend/kpm-web:/workspace

@@ -270,8 +270,6 @@ export const customerPortalApi = {
       undefined,
       token,
     ),
-  taskStatuses: (token = readCustomerPortalToken()) =>
-    request<string[]>("/api/customer-portal/tasks/statuses", undefined, token),
   taskStats: (projectId?: string, token = readCustomerPortalToken()) =>
     request<CustomerPortalTaskStats>(
       `/api/customer-portal/tasks/stats${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ""}`,

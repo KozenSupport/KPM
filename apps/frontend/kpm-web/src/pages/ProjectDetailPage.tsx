@@ -28,6 +28,7 @@ import {
 } from "antd";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ActionButtons } from "../components/common/ActionButtons";
 import { CustomerSelect } from "../components/common/CustomerSelect";
@@ -42,6 +43,8 @@ import { useActionLock } from "../hooks/useActionLock";
 import { confirmSubmit } from "../hooks/useConfirmingForm";
 import { kpmApi } from "../services/kpmApi";
 import type { AnyRecord, ProjectSku, ProjectStage } from "../types";
+import { EnumCode, EnumType } from "../types/businessEnums";
+import { businessEnumLabel, firstEnumCode } from "../utils/businessEnums";
 import {
   MAX_ATTACHMENT_SIZE_MB,
   attachmentLimitMessage,
@@ -50,7 +53,7 @@ import {
   normalizeUploadFiles,
   uploadBusinessFiles,
 } from "../utils/fileUpload";
-import { dateTimeText, enumValues, includesKeyword } from "../utils/format";
+import { dateTimeText, includesKeyword } from "../utils/format";
 import { validationRules } from "../validation";
 
 function uploadFileList(event: AnyRecord) {
@@ -72,6 +75,7 @@ export function ProjectDetailPage() {
   const refresh = useRefreshKpmData();
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useKpmData();
+  const { i18n } = useTranslation();
   const { user, can } = useAuth();
   const [skuForm] = Form.useForm();
   const [memberForm] = Form.useForm();
@@ -152,20 +156,11 @@ export function ProjectDetailPage() {
   const { isLocked, runLocked } = useActionLock();
   const taskDefaults = useMemo(
     () => ({
-      category: enumValues(data?.bootstrap?.enumItems || [], "task_category", [
-        "其他",
-      ])[0],
-      status: enumValues(data?.bootstrap?.enumItems || [], "task_status", [
-        "待处理",
-      ])[0],
-      priority: enumValues(data?.bootstrap?.enumItems || [], "task_priority", [
-        "中",
-      ])[0],
-      requirementStatus: enumValues(
-        data?.bootstrap?.enumItems || [],
-        "requirement_status",
-        ["待处理"],
-      )[0],
+      category: firstEnumCode(data?.bootstrap?.enumItems, EnumType.taskCategory, EnumCode.other),
+      status: firstEnumCode(data?.bootstrap?.enumItems, EnumType.taskStatus, EnumCode.pending),
+      priority: firstEnumCode(data?.bootstrap?.enumItems, EnumType.taskPriority, EnumCode.medium),
+      requirementPriority: firstEnumCode(data?.bootstrap?.enumItems, EnumType.priority, EnumCode.medium),
+      requirementStatus: firstEnumCode(data?.bootstrap?.enumItems, EnumType.requirementStatus, EnumCode.pendingReview),
     }),
     [data?.bootstrap?.enumItems],
   );
@@ -450,7 +445,7 @@ export function ProjectDetailPage() {
   async function updateProjectCustomerStatus(row: AnyRecord, next?: string) {
     if (!next || next === row.projectStatus) return;
     confirmSubmit(
-      `确认将“${row.customerName || row.name || "该客户"}”在本项目下的状态改为“${next}”？`,
+      `确认将“${row.customerName || row.name || "该客户"}”在本项目下的状态改为“${businessEnumLabel(data?.bootstrap?.enumItems, EnumType.customerProjectStatus, next, i18n.language)}”？`,
       async () => {
         await kpmApi.updateProjectCustomerStatus(id, row.customerId, {
           projectStatus: next,
@@ -484,7 +479,7 @@ export function ProjectDetailPage() {
         projectId: id,
         stageId: activeStage.id,
         creator: operatorName,
-        source: "阶段详情",
+        source: EnumCode.taskSourceStageDetail,
       });
       if (files.length) {
         const materials = await uploadBusinessFiles(
@@ -505,7 +500,7 @@ export function ProjectDetailPage() {
   }
 
   function openAnnouncementModal() {
-    announcementForm.setFieldsValue({ announcementType: "普通公告" });
+    announcementForm.setFieldsValue({ announcementType: firstEnumCode(data?.bootstrap?.enumItems, EnumType.announcementType, EnumCode.generalAnnouncement) });
     setAnnouncementModal(true);
   }
 
@@ -643,7 +638,7 @@ export function ProjectDetailPage() {
                               <Space.Compact style={{ width: "100%" }}>
                                 <EnumSelect
                                   bootstrap={data?.bootstrap}
-                                  enumType="stage_status"
+                                  enumType={EnumType.stageStatus}
                                   value={row.status}
                                   disabled={!editable}
                                   onChange={(value) =>
@@ -815,7 +810,7 @@ export function ProjectDetailPage() {
                             render: (value: string, row: AnyRecord) => (
                               <EnumSelect
                                 bootstrap={data?.bootstrap}
-                                enumType="customer_project_status"
+                                enumType={EnumType.customerProjectStatus}
                                 value={value}
                                 onChange={(next) =>
                                   updateProjectCustomerStatus(row, next)
@@ -851,11 +846,11 @@ export function ProjectDetailPage() {
                       columns={[
                         { title: "需求", dataIndex: "title", ellipsis: true },
                         { title: "客户", dataIndex: "customerName" },
-                        { title: "优先级", dataIndex: "priority" },
+                        { title: "优先级", dataIndex: "priority", render: (value) => businessEnumLabel(data?.bootstrap?.enumItems, EnumType.priority, value, i18n.language) },
                         {
                           title: "状态",
                           dataIndex: "status",
-                          render: (value) => <StatusTag value={value} />,
+                          render: (value) => <StatusTag value={value} enumItems={data?.bootstrap?.enumItems} enumType={EnumType.requirementStatus} />,
                         },
                         {
                           title: "任务",
@@ -1025,18 +1020,13 @@ export function ProjectDetailPage() {
                             title: "类型",
                             dataIndex: "announcementType",
                             width: 130,
-                            render: (value) => <Tag>{value || "普通公告"}</Tag>,
+                            render: (value) => <Tag>{businessEnumLabel(data?.bootstrap?.enumItems, EnumType.announcementType, value || EnumCode.generalAnnouncement, i18n.language)}</Tag>,
                           },
                           {
                             title: "状态",
                             dataIndex: "announcementStatus",
                             width: 100,
-                            render: (value) =>
-                              value === "撤回" ? (
-                                <Tag color="default">已撤回</Tag>
-                              ) : (
-                                <Tag color="success">已发布</Tag>
-                              ),
+                            render: (value) => <StatusTag value={value} />,
                           },
                           {
                             title: "发布人",
@@ -1054,7 +1044,7 @@ export function ProjectDetailPage() {
                             title: "撤回信息",
                             width: 220,
                             render: (_, row: AnyRecord) =>
-                              row.announcementStatus === "撤回" ? (
+                              row.announcementStatus === EnumCode.retracted ? (
                                 <Typography.Text type="secondary">
                                   {row.retractedBy || "-"} · {dateTimeText(row.retractedAt)}
                                 </Typography.Text>
@@ -1066,7 +1056,7 @@ export function ProjectDetailPage() {
                             title: "操作",
                             width: 100,
                             render: (_, row: AnyRecord) =>
-                              row.announcementStatus === "撤回" ? null : (
+                              row.announcementStatus === EnumCode.retracted ? null : (
                                 <Button
                                   size="small"
                                   danger
@@ -1102,7 +1092,7 @@ export function ProjectDetailPage() {
                         "-"}
                     </Descriptions.Item>
                     <Descriptions.Item label="状态">
-                      <StatusTag value={activeStage.status} />
+                      <StatusTag value={activeStage.status} enumItems={data?.bootstrap?.enumItems} enumType={EnumType.stageStatus} />
                     </Descriptions.Item>
                     <Descriptions.Item label="负责人" span={2}>
                       <Space wrap>
@@ -1268,7 +1258,7 @@ export function ProjectDetailPage() {
                         onClick={() => {
                           requirementForm.resetFields();
                           requirementForm.setFieldsValue({
-                            priority: taskDefaults.priority,
+                            priority: taskDefaults.requirementPriority,
                             status: taskDefaults.requirementStatus,
                             createTask: true,
                           });
@@ -1288,9 +1278,7 @@ export function ProjectDetailPage() {
                         {activeProjectCustomer.region || "-"}
                       </Descriptions.Item>
                       <Descriptions.Item label="客户项目状态">
-                        <StatusTag
-                          value={activeProjectCustomer.projectStatus}
-                        />
+                        <StatusTag value={activeProjectCustomer.projectStatus} enumItems={data?.bootstrap?.enumItems} enumType={EnumType.customerProjectStatus} />
                       </Descriptions.Item>
                     </Descriptions>
                   </Card>
@@ -1301,12 +1289,12 @@ export function ProjectDetailPage() {
                     dataSource={activeProjectCustomer.requirements || []}
                     columns={[
                       { title: "需求", dataIndex: "title", ellipsis: true },
-                      { title: "优先级", dataIndex: "priority", width: 90 },
+                      { title: "优先级", dataIndex: "priority", width: 90, render: (value) => businessEnumLabel(data?.bootstrap?.enumItems, EnumType.priority, value, i18n.language) },
                       {
                         title: "状态",
                         dataIndex: "status",
                         width: 110,
-                        render: (value) => <StatusTag value={value} />,
+                        render: (value) => <StatusTag value={value} enumItems={data?.bootstrap?.enumItems} enumType={EnumType.requirementStatus} />,
                       },
                       {
                         title: "任务",
@@ -1388,7 +1376,7 @@ export function ProjectDetailPage() {
                 >
                   <EnumSelect
                     bootstrap={data?.bootstrap}
-                    enumType="project_announcement_type"
+                    enumType={EnumType.announcementType}
                     placeholder="请选择公告类型"
                   />
                 </Form.Item>
@@ -1529,7 +1517,7 @@ export function ProjectDetailPage() {
                 >
                   <EnumSelect
                     bootstrap={data?.bootstrap}
-                    enumType="customer_project_status"
+                    enumType={EnumType.customerProjectStatus}
                   />
                 </Form.Item>
               </Form>
@@ -1695,7 +1683,7 @@ export function ProjectDetailPage() {
                   >
                     <EnumSelect
                       bootstrap={data?.bootstrap}
-                      enumType="task_priority"
+                      enumType={EnumType.taskPriority}
                     />
                   </Form.Item>
                 </Space.Compact>
@@ -1708,7 +1696,7 @@ export function ProjectDetailPage() {
                   >
                     <EnumSelect
                       bootstrap={data?.bootstrap}
-                      enumType="task_category"
+                      enumType={EnumType.taskCategory}
                     />
                   </Form.Item>
                   <Form.Item
@@ -1719,7 +1707,7 @@ export function ProjectDetailPage() {
                   >
                     <EnumSelect
                       bootstrap={data?.bootstrap}
-                      enumType="task_status"
+                      enumType={EnumType.taskStatus}
                     />
                   </Form.Item>
                 </Space.Compact>
@@ -1808,7 +1796,7 @@ export function ProjectDetailPage() {
                   >
                     <EnumSelect
                       bootstrap={data?.bootstrap}
-                      enumType="task_priority"
+                      enumType={EnumType.priority}
                     />
                   </Form.Item>
                   <Form.Item
@@ -1818,7 +1806,7 @@ export function ProjectDetailPage() {
                   >
                     <EnumSelect
                       bootstrap={data?.bootstrap}
-                      enumType="requirement_status"
+                      enumType={EnumType.requirementStatus}
                     />
                   </Form.Item>
                 </Space.Compact>

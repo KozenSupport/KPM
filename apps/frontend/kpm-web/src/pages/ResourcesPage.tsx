@@ -1,6 +1,7 @@
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Button, Card, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tabs, Tag, message } from 'antd';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActionButtons } from '../components/common/ActionButtons';
 import { DataState } from '../components/common/DataState';
 import { EnumSelect } from '../components/common/EnumSelect';
@@ -11,6 +12,8 @@ import { useActionLock } from '../hooks/useActionLock';
 import { confirmSubmit } from '../hooks/useConfirmingForm';
 import { kpmApi } from '../services/kpmApi';
 import type { AnyRecord, Department, EnumItem, Permission, Role, TaskStatusTransition, User } from '../types';
+import { BUSINESS_ENUM_CODE_PATTERN, EnumCode, EnumType } from '../types/businessEnums';
+import { businessEnumLabel, fixedEnumOptions } from '../utils/businessEnums';
 import { includesKeyword } from '../utils/format';
 import { validationRules } from '../validation';
 
@@ -22,12 +25,17 @@ const enumTypeOptions = [
   { label: '任务分类 task_category', value: 'task_category' },
   { label: '任务状态 task_status', value: 'task_status' },
   { label: '任务优先级 task_priority', value: 'task_priority' },
+  { label: '需求优先级 priority', value: 'priority' },
+  { label: '需求状态 requirement_status', value: 'requirement_status' },
   { label: '订单类型 order_type', value: 'order_type' },
   { label: '订单状态 order_status', value: 'order_status' },
+  { label: '币种 currency', value: 'currency' },
+  { label: '公告类型 project_announcement_type', value: 'project_announcement_type' },
 ];
 
 export function ResourcesPage() {
   const { data, isLoading, error } = useKpmData();
+  const { i18n } = useTranslation();
   const refresh = useRefreshKpmData();
   const [keyword, setKeyword] = useState('');
   const [enumTypeFilter, setEnumTypeFilter] = useState<string | undefined>();
@@ -47,6 +55,8 @@ export function ResourcesPage() {
   const permissionOptions = (data?.bootstrap.permissions || []).map((permission) => ({ label: `${permission.name}（${permission.code || permission.key}）`, value: permission.code || permission.key || permission.name }));
   const roleOptions = (data?.bootstrap.roles || []).map((role) => ({ label: role.name, value: role.name }));
   const departmentOptions = (data?.bootstrap.departments || []).map((dept) => ({ label: dept.name, value: dept.name }));
+  const activeOptions = fixedEnumOptions([EnumCode.active, EnumCode.inactive], i18n.language);
+  const roleTypeOptions = fixedEnumOptions([EnumCode.global, EnumCode.project], i18n.language);
 
   const filteredUsers = useMemo(() => (data?.bootstrap.users || []).filter((user) => includesKeyword([user.name, user.email, user.account], keyword)), [data?.bootstrap.users, keyword]);
   const enumFilterOptions = useMemo(() => {
@@ -62,7 +72,7 @@ export function ResourcesPage() {
 
   function openUser(row?: User) {
     setUserModal({ open: true, row });
-    userForm.setFieldsValue(row || { status: '启用' });
+    userForm.setFieldsValue(row || { status: EnumCode.active });
   }
 
   async function submitUser() {
@@ -81,7 +91,7 @@ export function ResourcesPage() {
 
   function openDept(row?: Department) {
     setDeptModal({ open: true, row });
-    deptForm.setFieldsValue(row || { status: '启用' });
+    deptForm.setFieldsValue(row || { status: EnumCode.active });
   }
 
   async function submitDept() {
@@ -100,7 +110,7 @@ export function ResourcesPage() {
 
   function openRole(row?: Role) {
     setRoleModal({ open: true, row });
-    roleForm.setFieldsValue(row || { status: '启用', roleType: '全局角色' });
+    roleForm.setFieldsValue(row || { status: EnumCode.active, roleType: EnumCode.global });
   }
 
   async function submitRole() {
@@ -175,7 +185,7 @@ export function ResourcesPage() {
               key: 'roles', label: '角色管理', children: <Card className="kpm-card" extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openRole()}>新增角色</Button>}>
                 <Table<Role> size="small" rowKey="id" dataSource={data?.bootstrap.roles || []} pagination={{ pageSize: 10 }} columns={[
                   { title: '角色名称', dataIndex: 'name' },
-                  { title: '类型', dataIndex: 'roleType' },
+                  { title: '类型', dataIndex: 'roleType', render: (value) => businessEnumLabel(undefined, undefined, value, i18n.language) },
                   { title: '权限数量', dataIndex: 'permissions', render: (value?: string[]) => <Tag color="blue">{(value || []).length}</Tag> },
                   { title: '状态', dataIndex: 'status', render: (value) => <StatusTag value={value} /> },
                   { title: '操作', width: 112, render: (_, row) => <ActionButtons onEdit={() => openRole(row)} onDelete={() => kpmApi.deleteRole(row.id).then(() => { message.success('角色已删除'); refresh(); })} /> },
@@ -187,7 +197,7 @@ export function ResourcesPage() {
                 <Table<Permission> size="small" rowKey={(row) => row.code || row.key || row.name} dataSource={data?.bootstrap.permissions || []} pagination={{ pageSize: 12 }} columns={[
                   { title: '权限名称', dataIndex: 'name' },
                   { title: '权限编码', render: (_, row) => <Tag>{row.code || row.key}</Tag> },
-                  { title: '类型', render: (_, row) => <Tag color={(row.permissionType || row.type) === 'menu' ? 'blue' : 'green'}>{row.permissionType || row.type}</Tag> },
+                  { title: '类型', render: (_, row) => { const value = row.permissionType || row.type; return <Tag color={value === EnumCode.menu ? 'blue' : 'green'}>{businessEnumLabel(undefined, undefined, value, i18n.language)}</Tag>; } },
                   { title: '对应菜单/按钮', render: (_, row) => row.target || row.location || '-' },
                 ]} />
               </Card>,
@@ -213,8 +223,8 @@ export function ResourcesPage() {
             {
               key: 'transitions', label: '任务状态流转', children: <Card className="kpm-card" extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setTransitionModal(true)}>新增流转</Button>}>
                 <Table<TaskStatusTransition> size="small" rowKey="id" dataSource={data?.bootstrap.taskStatusTransitions || []} pagination={false} columns={[
-                  { title: '起始状态', dataIndex: 'fromStatus' },
-                  { title: '目标状态', dataIndex: 'toStatus' },
+                  { title: '起始状态', dataIndex: 'fromStatus', render: (value) => businessEnumLabel(data?.bootstrap?.enumItems, EnumType.taskStatus, value, i18n.language) },
+                  { title: '目标状态', dataIndex: 'toStatus', render: (value) => businessEnumLabel(data?.bootstrap?.enumItems, EnumType.taskStatus, value, i18n.language) },
                   { title: '操作', width: 80, render: (_, row) => <ActionButtons onDelete={() => kpmApi.deleteTaskStatusTransition(row.id).then(() => { message.success('流转规则已删除'); refresh(); })} /> },
                 ]} />
               </Card>,
@@ -228,23 +238,32 @@ export function ResourcesPage() {
             <Form.Item name="departments" label="所属部门"><Select mode="multiple" showSearch optionFilterProp="label" options={departmentOptions} /></Form.Item>
             <Form.Item name="globalRoles" label="全局角色"><Select mode="multiple" showSearch optionFilterProp="label" options={roleOptions} /></Form.Item>
             <Form.Item name="directPermissions" label="直接权限"><Select mode="multiple" showSearch optionFilterProp="label" options={permissionOptions} /></Form.Item>
-            <Form.Item name="status" label="状态"><EnumSelect bootstrap={data?.bootstrap} enumType="user_status" /></Form.Item>
+            <Form.Item name="status" label="状态" rules={[validationRules.required('请选择状态')]}><Select options={activeOptions} /></Form.Item>
           </Form>
         </Modal>
         <Modal title={deptModal.row ? '编辑部门' : '新增部门'} open={deptModal.open} maskClosable onCancel={() => setDeptModal({ open: false })} onOk={submitDept} confirmLoading={isLocked('resource-department-save')}>
-          <Form form={deptForm} layout="vertical"><Form.Item name="name" label="部门名称" rules={[validationRules.required('请输入部门名称')]}><Input /></Form.Item><Form.Item name="status" label="状态"><Select options={[{ label: '启用', value: '启用' }, { label: '停用', value: '停用' }]} /></Form.Item></Form>
+          <Form form={deptForm} layout="vertical"><Form.Item name="name" label="部门名称" rules={[validationRules.required('请输入部门名称')]}><Input /></Form.Item><Form.Item name="status" label="状态" rules={[validationRules.required('请选择状态')]}><Select options={activeOptions} /></Form.Item></Form>
         </Modal>
         <Modal title={roleModal.row ? '编辑角色' : '新增角色'} open={roleModal.open} maskClosable onCancel={() => setRoleModal({ open: false })} onOk={submitRole} confirmLoading={isLocked('resource-role-save')} width={760}>
-          <Form form={roleForm} layout="vertical"><Form.Item name="name" label="角色名称" rules={[validationRules.required('请输入角色名称')]}><Input /></Form.Item><Form.Item name="roleType" label="角色类型"><Input /></Form.Item><Form.Item name="status" label="状态"><Select options={[{ label: '启用', value: '启用' }, { label: '停用', value: '停用' }]} /></Form.Item><Form.Item name="permissions" label="角色权限"><Select mode="multiple" showSearch optionFilterProp="label" options={permissionOptions} /></Form.Item></Form>
+          <Form form={roleForm} layout="vertical"><Form.Item name="name" label="角色名称" rules={[validationRules.required('请输入角色名称')]}><Input /></Form.Item><Form.Item name="roleType" label="角色类型" rules={[validationRules.required('请选择角色类型')]}><Select options={roleTypeOptions} /></Form.Item><Form.Item name="status" label="状态" rules={[validationRules.required('请选择状态')]}><Select options={activeOptions} /></Form.Item><Form.Item name="permissions" label="角色权限"><Select mode="multiple" showSearch optionFilterProp="label" options={permissionOptions} /></Form.Item></Form>
         </Modal>
         <Modal title={enumModal.row ? '编辑枚举' : '新增枚举'} open={enumModal.open} maskClosable onCancel={() => setEnumModal({ open: false })} onOk={submitEnum} confirmLoading={isLocked('resource-enum-save')} width={760}>
           <Form form={enumForm} layout="vertical">
-            <Form.Item name="enumType" label="枚举类型" rules={[validationRules.required('请选择枚举类型')]}><Select showSearch options={enumTypeOptions} /></Form.Item>
+            <Form.Item name="enumType" label="枚举类型" rules={[validationRules.required('请选择枚举类型')]}><Select showSearch disabled={Boolean(enumModal.row)} options={enumTypeOptions} /></Form.Item>
             <Space.Compact block>
               <Form.Item name="name" label="中文名称" rules={[validationRules.required('请输入中文名称')]} style={{ width: '50%' }}><Input placeholder="例如：技术支持" /></Form.Item>
-              <Form.Item name="nameEn" label="英文名称" style={{ width: '50%' }}><Input placeholder="例如：Support" /></Form.Item>
+              <Form.Item name="nameEn" label="英文名称" rules={[validationRules.required('请输入英文名称')]} style={{ width: '50%' }}><Input placeholder="例如：Technical Support" /></Form.Item>
             </Space.Compact>
-            <Form.Item name="value" label="枚举值" tooltip="接口传参与后端业务判断使用该值，保存后不建议随意修改。"><Input placeholder="例如：技术支持" /></Form.Item>
+            <Form.Item
+              name="value"
+              label="枚举值"
+              normalize={(value) => String(value || '').trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_').replace(/_+/g, '_').slice(0, 64)}
+              rules={[
+                validationRules.required('请输入枚举值'),
+                { pattern: BUSINESS_ENUM_CODE_PATTERN, message: '枚举值必须为大写英文字母开头的英文码，可包含数字和下划线' },
+              ]}
+              tooltip="数据库和接口使用的稳定英文码，创建后不可修改。"
+            ><Input disabled={Boolean(enumModal.row)} placeholder="例如：TECHNICAL_SUPPORT" /></Form.Item>
             <Space.Compact block>
               <Form.Item name="active" label="启用" valuePropName="checked" style={{ width: '50%' }}><Switch /></Form.Item>
               <Form.Item name="sortOrder" label="排序" style={{ width: '50%' }}><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>

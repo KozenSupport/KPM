@@ -16,6 +16,7 @@ import com.kozen.kpm.resource.dto.TaskStatusTransitionRequest;
 import com.kozen.kpm.resource.dto.UserRequest;
 import com.kozen.kpm.resource.dto.UserResourceDto;
 import com.kozen.kpm.resource.entity.RoleEntity;
+import com.kozen.kpm.resource.entity.EnumItemEntity;
 import com.kozen.kpm.resource.entity.UserResourceEntity;
 import com.kozen.kpm.resource.mapper.ResourceMapper;
 import com.kozen.kpm.resource.service.ResourceService;
@@ -35,7 +36,7 @@ import java.util.List;
 @Service
 public class ResourceServiceImpl implements ResourceService {
     private static final String DEFAULT_INITIAL_PASSWORD = "123456";
-    private static final String BOOTSTRAP_CACHE_KEY = "kpm:cache:resource:bootstrap:v1";
+    private static final String BOOTSTRAP_CACHE_KEY = "kpm:cache:resource:bootstrap:v2";
 
     private final ResourceMapper resourceMapper;
     private final ResourceConverter resourceConverter;
@@ -181,6 +182,13 @@ public class ResourceServiceImpl implements ResourceService {
 
     @Override
     public EnumItemDto updateEnum(String id, EnumItemRequest request) {
+        EnumItemEntity existing = resourceMapper.enumItem(id);
+        if (existing == null) {
+            throw new IllegalArgumentException("枚举项不存在");
+        }
+        if (!existing.getEnumType().equals(request.enumType()) || !existing.getValue().equals(request.normalizedValue())) {
+            throw new IllegalArgumentException("枚举类型和Code创建后不可修改；如需新Code，请新增枚举项并迁移业务数据");
+        }
         resourceMapper.updateEnum(id, request);
         evictBootstrap();
         return resourceConverter.toEnumItemDto(resourceMapper.enumItem(id));
@@ -198,6 +206,8 @@ public class ResourceServiceImpl implements ResourceService {
         if (request.fromStatus().equals(request.toStatus())) {
             throw new IllegalArgumentException("起始状态和目标状态不能相同");
         }
+        assertActiveTaskStatus(request.fromStatus(), "起始状态");
+        assertActiveTaskStatus(request.toStatus(), "目标状态");
         List<String> existingIds = resourceMapper.taskStatusTransitionIdsByPair(request.fromStatus(), request.toStatus());
         String transitionId = existingIds.isEmpty()
                 ? createTaskStatusTransitionRow(request)
@@ -215,6 +225,12 @@ public class ResourceServiceImpl implements ResourceService {
 
     private void evictBootstrap() {
         redisCache.evict(BOOTSTRAP_CACHE_KEY);
+    }
+
+    private void assertActiveTaskStatus(String code, String label) {
+        if (resourceMapper.activeEnumValueCount("task_status", code) == 0) {
+            throw new IllegalArgumentException(label + "不是已启用的任务状态Code：" + code);
+        }
     }
 
     private String createTaskStatusTransitionRow(TaskStatusTransitionRequest request) {

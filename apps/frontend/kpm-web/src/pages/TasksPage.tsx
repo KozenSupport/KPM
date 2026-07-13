@@ -20,8 +20,10 @@ import { useActionLock } from '../hooks/useActionLock';
 import { confirmSubmit } from '../hooks/useConfirmingForm';
 import { kpmApi } from '../services/kpmApi';
 import type { AnyRecord, Task } from '../types';
+import { EnumCode, EnumType } from '../types/businessEnums';
+import { businessEnumLabel, firstEnumCode } from '../utils/businessEnums';
 import { MAX_ATTACHMENT_SIZE_MB, attachmentLimitMessage, downloadBusinessFile, isWithinAttachmentLimit, normalizeUploadFiles, uploadBusinessFiles } from '../utils/fileUpload';
-import { compactId, dateText, dateTimeText, enumDisplayLabel, enumValues } from '../utils/format';
+import { compactId, dateText, dateTimeText } from '../utils/format';
 import { resolveTaskUser } from '../utils/taskScope';
 import { validationRules } from '../validation';
 
@@ -63,9 +65,9 @@ export function TasksPage() {
   const operatorName = user?.name || user?.account || '当前用户';
   const { isLocked, runLocked } = useActionLock();
   const taskDefaults = useMemo(() => ({
-    category: enumValues(data?.bootstrap?.enumItems || [], 'task_category', ['需求'])[0],
-    status: enumValues(data?.bootstrap?.enumItems || [], 'task_status', ['待处理'])[0],
-    priority: enumValues(data?.bootstrap?.enumItems || [], 'task_priority', ['中'])[0],
+    category: firstEnumCode(data?.bootstrap?.enumItems, EnumType.taskCategory, EnumCode.requirement),
+    status: firstEnumCode(data?.bootstrap?.enumItems, EnumType.taskStatus, EnumCode.pending),
+    priority: firstEnumCode(data?.bootstrap?.enumItems, EnumType.taskPriority, EnumCode.medium),
   }), [data?.bootstrap?.enumItems]);
   const taskCategoryMap = useMemo(() => new Map((data?.bootstrap?.enumItems || [])
     .filter((item) => item.enumType === 'task_category')
@@ -77,7 +79,7 @@ export function TasksPage() {
   }, [searchParams]);
 
   const completedStatusValues = useMemo(() => new Set((data?.bootstrap?.enumItems || [])
-    .filter((item) => item.enumType === 'task_status' && item.value === '已完成')
+    .filter((item) => item.enumType === EnumType.taskStatus && item.value === EnumCode.completed)
     .map((item) => item.value)
     .filter(Boolean)), [data?.bootstrap?.enumItems]);
 
@@ -278,10 +280,10 @@ export function TasksPage() {
               { title: '标题', dataIndex: 'title', ellipsis: true, render: (title, row) => <button className="link-button truncate" type="button" onClick={() => openDetail(row)}>{title}</button> },
               { title: '分类', dataIndex: 'category', width: 74, align: 'center', render: (value) => {
                 const item = taskCategoryMap.get(value);
-                return <TaskCategoryTag value={value} label={enumDisplayLabel(item, i18n.language) || value} />;
+                return <TaskCategoryTag value={value} label={businessEnumLabel(data?.bootstrap?.enumItems, EnumType.taskCategory, item?.value || value, i18n.language)} />;
               } },
-              { title: '状态', dataIndex: 'status', width: 120, render: (value) => <StatusTag value={value} /> },
-              { title: '优先级', dataIndex: 'priority', width: 90, render: (value) => <TaskPriorityTag value={value} /> },
+              { title: '状态', dataIndex: 'status', width: 120, render: (value) => <StatusTag value={value} enumItems={data?.bootstrap?.enumItems} enumType={EnumType.taskStatus} /> },
+              { title: '优先级', dataIndex: 'priority', width: 90, render: (value) => <TaskPriorityTag value={value} label={businessEnumLabel(data?.bootstrap?.enumItems, EnumType.taskPriority, value, i18n.language)} /> },
               { title: '项目/客户', width: 230, render: (_, row) => <Space wrap size={[4, 4]}><TaskProjectTag value={row.projectName} />{row.customerName ? <Tag color="default">{row.customerName}</Tag> : <Tag color="default">所有客户</Tag>}</Space> },
               { title: '执行者', dataIndex: 'assignees', width: 160, render: (names?: string[]) => <Space wrap>{(names || []).slice(0, 2).map((name) => <Tag key={name}>{name}</Tag>)}</Space> },
               { title: '预期完成', dataIndex: 'expectedCompletionAt', width: 120, render: dateText },
@@ -318,9 +320,9 @@ export function TasksPage() {
           {activeDetail ? <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Descriptions bordered size="small" column={2}>
               <Descriptions.Item label="编号">{activeDetail.taskNo || compactId(activeDetail.id, 'task')}</Descriptions.Item>
-              <Descriptions.Item label="状态"><StatusTag value={activeDetail.status} /></Descriptions.Item>
-              <Descriptions.Item label="分类">{activeDetail.category || '-'}</Descriptions.Item>
-              <Descriptions.Item label="优先级">{activeDetail.priority || '-'}</Descriptions.Item>
+              <Descriptions.Item label="状态"><StatusTag value={activeDetail.status} enumItems={data?.bootstrap?.enumItems} enumType={EnumType.taskStatus} /></Descriptions.Item>
+              <Descriptions.Item label="分类">{businessEnumLabel(data?.bootstrap?.enumItems, EnumType.taskCategory, activeDetail.category, i18n.language)}</Descriptions.Item>
+              <Descriptions.Item label="优先级">{businessEnumLabel(data?.bootstrap?.enumItems, EnumType.taskPriority, activeDetail.priority, i18n.language)}</Descriptions.Item>
               <Descriptions.Item label="项目">{activeDetail.projectName || '-'}</Descriptions.Item>
               <Descriptions.Item label="客户">{activeDetail.customerName || '所有客户'}</Descriptions.Item>
               <Descriptions.Item label="创建人">{activeDetail.creator || '-'}</Descriptions.Item>

@@ -7,6 +7,7 @@ import com.aliyun.oss.model.GeneratePresignedUrlRequest;
 import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.ResponseHeaderOverrides;
 import com.kozen.kpm.common.util.ValidationUtil;
+import com.kozen.kpm.common.util.BusinessEnumCodes;
 import com.kozen.kpm.file.config.OssProperties;
 import com.kozen.kpm.file.model.DownloadUrlResult;
 import com.kozen.kpm.file.model.FileUploadResult;
@@ -64,13 +65,10 @@ public class AliyunOssFileStorageService implements FileStorageService {
             ossClient.shutdown();
         }
 
-        String fileType = fileTypeLabel(originalName, file.getContentType());
+        String fileType = fileTypeCode(originalName, file.getContentType());
         return new FileUploadResult(
                 originalName,
-                originalName,
                 fileType,
-                fileType,
-                humanFileSize(file.getSize()),
                 humanFileSize(file.getSize()),
                 file.getSize(),
                 file.getContentType() == null ? "application/octet-stream" : file.getContentType(),
@@ -230,15 +228,15 @@ public class AliyunOssFileStorageService implements FileStorageService {
         return String.format(Locale.US, "%.1f GB", mb / 1024.0);
     }
 
-    private static String fileTypeLabel(String fileName, String contentType) {
+    private static String fileTypeCode(String fileName, String contentType) {
         String lowerName = fileName == null ? "" : fileName.toLowerCase(Locale.ROOT);
         String lowerContentType = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
-        if (lowerContentType.startsWith("image/") || lowerName.matches(".*\\.(png|jpg|jpeg|gif|webp|svg)$")) return "图片";
-        if (lowerContentType.startsWith("video/") || lowerName.matches(".*\\.(mp4|mov|avi|mkv|webm)$")) return "视频";
-        if (lowerName.endsWith(".pdf")) return "PDF";
-        if (lowerName.matches(".*\\.(doc|docx)$")) return "Word";
-        if (lowerName.matches(".*\\.(xls|xlsx|csv)$")) return "表格";
-        if (lowerName.matches(".*\\.(ppt|pptx)$")) return "演示文稿";
-        return "文件";
+        if (lowerContentType.startsWith("image/") || lowerName.matches(".*\\.(png|jpg|jpeg|gif|webp|svg)$")) return BusinessEnumCodes.FILE_TYPE_IMAGE;
+        if (lowerContentType.startsWith("video/") || lowerName.matches(".*\\.(mp4|mov|avi|mkv|webm)$")) return BusinessEnumCodes.FILE_TYPE_VIDEO;
+        if ("application/pdf".equals(lowerContentType) || lowerName.endsWith(".pdf")) return BusinessEnumCodes.FILE_TYPE_PDF;
+        if (lowerName.matches(".*\\.(doc|docx|odt|rtf)$")) return BusinessEnumCodes.FILE_TYPE_DOCUMENT;
+        if (lowerName.matches(".*\\.(xls|xlsx|csv|ods)$")) return BusinessEnumCodes.FILE_TYPE_SPREADSHEET;
+        if (lowerName.matches(".*\\.(ppt|pptx|odp)$")) return BusinessEnumCodes.FILE_TYPE_PRESENTATION;
+        return BusinessEnumCodes.FILE_TYPE_OTHER;
     }
 }

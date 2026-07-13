@@ -2,6 +2,7 @@ package com.kozen.kpm.customer.knowledge.service.impl;
 
 import com.kozen.kpm.common.api.PageResult;
 import com.kozen.kpm.common.util.IdUtil;
+import com.kozen.kpm.common.util.BusinessEnumCodes;
 import com.kozen.kpm.common.util.JsonUtil;
 import com.kozen.kpm.common.util.PageParamUtil;
 import com.kozen.kpm.common.util.SqlParamUtil;
@@ -21,8 +22,8 @@ import java.util.List;
 
 @Service
 public class KnowledgeServiceImpl implements KnowledgeService {
-    private static final String STATUS_PENDING = "待审核";
-    private static final String STATUS_PUBLISHED = "已发布";
+    private static final String STATUS_PENDING = BusinessEnumCodes.KNOWLEDGE_STATUS_PENDING_REVIEW;
+    private static final String STATUS_PUBLISHED = BusinessEnumCodes.KNOWLEDGE_STATUS_PUBLISHED;
     private static final String PROJECT_SCOPE_OTHER = "OTHER";
     private static final String CUSTOMER_SCOPE_ALL = "ALL";
     private static final String CUSTOMER_SCOPE_INTERNAL = "INTERNAL";
@@ -107,7 +108,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         requireArticle(id);
         String status = clean(request.status());
         if (!STATUS_PENDING.equals(status) && !STATUS_PUBLISHED.equals(status)) {
-            throw new IllegalArgumentException("知识库文章状态仅支持待审核或已发布");
+            throw new IllegalArgumentException("知识库文章状态仅支持PENDING_REVIEW或PUBLISHED");
         }
         KnowledgeUserEntity operator = resolveOperator(operatorAccount);
         int updated = knowledgeMapper.updateStatus(id, status, operator.getAccount());

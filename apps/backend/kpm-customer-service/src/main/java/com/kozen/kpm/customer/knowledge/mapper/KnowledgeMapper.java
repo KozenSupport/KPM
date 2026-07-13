@@ -130,7 +130,7 @@ public interface KnowledgeMapper {
     @Insert("""
             insert into kpm_knowledge_articles
             (id, title, symptom, root_cause, solution, workaround, attachments, status, author_user_id, author_name, creator, updator)
-            values (#{id}, #{title}, #{symptom}, #{rootCause}, #{solution}, #{workaround}, cast(#{attachments} as jsonb), '待审核', cast(#{authorUserId} as bigint), #{authorName}, #{operator}, #{operator})
+            values (#{id}, #{title}, #{symptom}, #{rootCause}, #{solution}, #{workaround}, cast(#{attachments} as jsonb), 'PENDING_REVIEW', cast(#{authorUserId} as bigint), #{authorName}, #{operator}, #{operator})
             """)
     void insertArticle(@Param("id") String id,
                        @Param("title") String title,
@@ -168,7 +168,7 @@ public interface KnowledgeMapper {
     @Update("""
             update kpm_knowledge_articles
             set status=#{status},
-                published_at=case when #{status}='已发布' then coalesce(published_at, current_timestamp) else published_at end,
+                published_at=case when #{status}='PUBLISHED' then coalesce(published_at, current_timestamp) else published_at end,
                 updated_at=current_timestamp,
                 updator=#{operator},
                 update_time=current_timestamp
@@ -244,7 +244,7 @@ public interface KnowledgeMapper {
             left join kpm_customers c on c.id=kac.customer_id and c.del_flag=0
             left join kpm_knowledge_article_tasks kat on kat.article_id=ka.id and kat.del_flag=0
             where ka.del_flag=0
-              and ka.status='已发布'
+              and ka.status='PUBLISHED'
               and (#{keyword} = '' or ka.title ilike #{keyword} or ka.symptom ilike #{keyword} or ka.root_cause ilike #{keyword})
               and (
                 exists (select 1 from kpm_knowledge_article_customers allc where allc.article_id=ka.id and allc.del_flag=0 and allc.customer_scope='ALL')
@@ -266,7 +266,7 @@ public interface KnowledgeMapper {
             select count(1)
             from kpm_knowledge_articles ka
             where ka.del_flag=0
-              and ka.status='已发布'
+              and ka.status='PUBLISHED'
               and (#{keyword} = '' or ka.title ilike #{keyword} or ka.symptom ilike #{keyword} or ka.root_cause ilike #{keyword})
               and (
                 exists (select 1 from kpm_knowledge_article_customers allc where allc.article_id=ka.id and allc.del_flag=0 and allc.customer_scope='ALL')
@@ -282,7 +282,7 @@ public interface KnowledgeMapper {
             from kpm_knowledge_articles ka
             where ka.id=#{id}
               and ka.del_flag=0
-              and ka.status='已发布'
+              and ka.status='PUBLISHED'
               and (
                 exists (select 1 from kpm_knowledge_article_customers allc where allc.article_id=ka.id and allc.del_flag=0 and allc.customer_scope='ALL')
                 or exists (select 1 from kpm_knowledge_article_customers cc where cc.article_id=ka.id and cc.del_flag=0 and cc.customer_scope='CUSTOMER' and cc.customer_id=cast(#{customerId} as bigint))

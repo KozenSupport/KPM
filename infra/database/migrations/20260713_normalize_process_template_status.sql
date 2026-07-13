@@ -1,7 +1,7 @@
--- Keep process template status values consistent across UI and backend rules.
--- Only '启用' can be selected when creating projects; legacy inactive labels are normalized to '停用'.
+-- Normalize legacy inactive display labels to the stable machine-readable status code.
+-- Chinese values in the WHERE clause are legacy source data only; the stored target is English.
 UPDATE kpm_process_templates
-SET status='停用',
+SET status='INACTIVE',
     update_time=current_timestamp,
     updator=coalesce(updator, 'migration:normalize-process-template-status')
 WHERE del_flag=0

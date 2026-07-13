@@ -54,9 +54,6 @@ public interface CustomerPortalService {
     /** Attach uploaded file metadata to a customer-visible task. */
     CustomerPortalTaskDto addTaskAttachments(String authorizationHeader, String taskId, CustomerPortalTaskAttachmentRequest request);
 
-    /** Return task statuses currently used by this customer's tasks. */
-    List<String> taskStatuses(String authorizationHeader);
-
     /** Return customer-visible task delivery statistics, optionally scoped to one project. */
     CustomerPortalTaskStatsDto taskStats(String authorizationHeader, String projectId);
 

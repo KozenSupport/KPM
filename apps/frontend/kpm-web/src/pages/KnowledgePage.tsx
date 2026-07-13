@@ -39,6 +39,8 @@ import { useActionLock } from "../hooks/useActionLock";
 import { confirmSubmit } from "../hooks/useConfirmingForm";
 import { kpmApi } from "../services/kpmApi";
 import type { AnyRecord, KnowledgeArticle } from "../types";
+import { EnumCode } from "../types/businessEnums";
+import { fixedEnumOptions } from "../utils/businessEnums";
 import {
   attachmentLimitMessage,
   downloadBusinessFile,
@@ -50,8 +52,8 @@ import { dateTimeText } from "../utils/format";
 import { validationRules } from "../validation";
 
 const KNOWLEDGE_PAGE_SIZE = 10;
-const KNOWLEDGE_STATUS_PENDING = "待审核";
-const KNOWLEDGE_STATUS_PUBLISHED = "已发布";
+const KNOWLEDGE_STATUS_PENDING = EnumCode.pendingReview;
+const KNOWLEDGE_STATUS_PUBLISHED = EnumCode.published;
 
 type KnowledgeFormValues = {
   title: string;
@@ -163,7 +165,7 @@ function ArticleDetail({ article, onDownload }: { article: KnowledgeArticle; onD
 }
 
 export function KnowledgePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data } = useKpmData();
   const { user, can } = useAuth();
   const queryClient = useQueryClient();
@@ -319,7 +321,7 @@ export function KnowledgePage() {
               placeholder={t("knowledge.filterStatus")}
               style={{ width: 150 }}
               value={status}
-              options={[KNOWLEDGE_STATUS_PENDING, KNOWLEDGE_STATUS_PUBLISHED].map((value) => ({ label: value, value }))}
+              options={fixedEnumOptions([KNOWLEDGE_STATUS_PENDING, KNOWLEDGE_STATUS_PUBLISHED], i18n.language)}
               onChange={(value) => { setStatus(value); setPagination((page) => ({ ...page, current: 1 })); }}
             />
             <ProjectSelect

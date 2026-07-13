@@ -72,7 +72,7 @@ public class CustomerPortalController {
     }
 
     @GetMapping("/data")
-    @Operation(summary = "客户门户首页数据", description = "返回当前客户关联项目、任务状态筛选项、公告和消息。资料和任务列表请使用分页接口查询。")
+    @Operation(summary = "客户门户首页数据", description = "返回当前客户关联项目、业务枚举目录、公告和消息。资料和任务列表请使用分页接口查询。")
     public ApiResponse<CustomerPortalDataDto> data(@RequestHeader("Authorization") String authorization, HttpServletResponse response) {
         attachRefreshToken(authorization, response);
         return ApiResponse.ok(customerPortalService.data(authorization));
@@ -169,14 +169,6 @@ public class CustomerPortalController {
                                                                  HttpServletResponse response) {
         attachRefreshToken(authorization, response);
         return ApiResponse.ok(customerPortalService.addTaskAttachments(authorization, id, request));
-    }
-
-    @GetMapping("/tasks/statuses")
-    @Operation(summary = "客户门户任务状态筛选项", description = "返回当前客户任务中实际存在的状态，用于前端筛选。")
-    public ApiResponse<List<String>> taskStatuses(@RequestHeader("Authorization") String authorization,
-                                                  HttpServletResponse response) {
-        attachRefreshToken(authorization, response);
-        return ApiResponse.ok(customerPortalService.taskStatuses(authorization));
     }
 
     @GetMapping("/tasks/stats")

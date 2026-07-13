@@ -4,6 +4,7 @@ import com.kozen.kpm.common.util.JsonUtil;
 import com.kozen.kpm.customer.portal.dto.CustomerPortalMaterialDto;
 import com.kozen.kpm.customer.portal.dto.CustomerPortalAnnouncementDto;
 import com.kozen.kpm.customer.portal.dto.CustomerPortalContactDto;
+import com.kozen.kpm.customer.portal.dto.CustomerPortalEnumItemDto;
 import com.kozen.kpm.customer.portal.dto.CustomerPortalMessageDto;
 import com.kozen.kpm.customer.portal.dto.CustomerPortalMeDto;
 import com.kozen.kpm.customer.portal.dto.CustomerPortalProjectDto;
@@ -15,6 +16,7 @@ import com.kozen.kpm.customer.portal.dto.CustomerPortalTaskStatsDto;
 import com.kozen.kpm.customer.portal.dto.CustomerPortalTaskDto;
 import com.kozen.kpm.customer.portal.dto.CustomerPortalTaskCommentDto;
 import com.kozen.kpm.customer.portal.entity.CustomerPortalContactEntity;
+import com.kozen.kpm.customer.portal.entity.CustomerPortalEnumItemEntity;
 import com.kozen.kpm.customer.portal.entity.CustomerPortalMaterialEntity;
 import com.kozen.kpm.customer.portal.entity.CustomerPortalAnnouncementEntity;
 import com.kozen.kpm.customer.portal.entity.CustomerPortalMessageEntity;
@@ -96,6 +98,16 @@ public class CustomerPortalConverter {
 
     public CustomerPortalContactDto toContactDto(CustomerPortalContactEntity entity) {
         return new CustomerPortalContactDto(entity.getContactId(), entity.getContactName(), entity.getEmail());
+    }
+
+    public CustomerPortalEnumItemDto toEnumItemDto(CustomerPortalEnumItemEntity entity) {
+        return new CustomerPortalEnumItemDto(
+                entity.getEnumType(),
+                entity.getValue(),
+                entity.getName(),
+                entity.getNameEn(),
+                entity.getSortOrder()
+        );
     }
 
     public CustomerPortalTaskStatsDto toTaskStatsDto(CustomerPortalTaskStatsEntity entity, List<CustomerPortalProjectTaskStatsEntity> projectRows, List<CustomerPortalTaskCreatorStatsEntity> creatorRows, List<CustomerPortalTaskCategoryStatsEntity> categoryRows) {

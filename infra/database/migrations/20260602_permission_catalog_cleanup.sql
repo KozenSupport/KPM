@@ -6,8 +6,8 @@ DELETE FROM kpm_permissions WHERE code = 'button:templates:copy';
 
 INSERT INTO kpm_permissions (id, code, name, permission_type, target, location)
 VALUES
-  ('perm-btn-user-reset-password','button:users:reset-password','用户管理 / 重置密码','按钮权限','重置密码','用户管理'),
-  ('perm-btn-resources-edit','button:resources:edit','资源管理 / 维护配置','按钮权限','维护配置','资源管理')
+  ('perm-btn-user-reset-password','button:users:reset-password','用户管理 / 重置密码','BUTTON','重置密码','用户管理'),
+  ('perm-btn-resources-edit','button:resources:edit','资源管理 / 维护配置','BUTTON','维护配置','资源管理')
 ON CONFLICT (code) DO UPDATE SET
   name = EXCLUDED.name,
   permission_type = EXCLUDED.permission_type,

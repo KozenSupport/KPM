@@ -7,14 +7,14 @@ UPDATE kpm_projects
 SET process_template_id = (
   SELECT id
   FROM kpm_process_templates
-  WHERE status='启用' AND del_flag=0
+  WHERE status='ACTIVE' AND del_flag=0
   ORDER BY updated_at DESC, name
   LIMIT 1
 )
 WHERE process_template_id IS NULL
   AND del_flag=0
   AND EXISTS (
-    SELECT 1 FROM kpm_process_templates WHERE status='启用' AND del_flag=0
+    SELECT 1 FROM kpm_process_templates WHERE status='ACTIVE' AND del_flag=0
   );
 
 CREATE INDEX IF NOT EXISTS idx_kpm_projects_process_template

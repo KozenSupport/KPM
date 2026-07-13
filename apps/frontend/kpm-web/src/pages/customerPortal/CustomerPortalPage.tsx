@@ -57,8 +57,10 @@ import type {
   CustomerPortalMessage,
   CustomerPortalTask,
 } from "../../types/customerPortal";
-import type { AnyRecord } from "../../types";
-import { dateTimeText, isEnglishLanguage } from "../../utils/format";
+import type { AnyRecord, BusinessEnumItem } from "../../types";
+import { EnumCode, EnumType } from "../../types/businessEnums";
+import { businessEnumLabel, businessEnumOptions, firstEnumCode } from "../../utils/businessEnums";
+import { dateTimeText } from "../../utils/format";
 import {
   MAX_ATTACHMENT_SIZE_MB,
   attachmentLimitMessage,
@@ -140,19 +142,12 @@ function formatHours(value?: number) {
   return `${(hours / 24).toFixed(1)}d`;
 }
 
-function portalTaskCategoryLabel(task: CustomerPortalTask, language?: string) {
-  return isEnglishLanguage(language)
-    ? task.categoryNameEn || task.categoryName || task.category || ""
-    : task.categoryName || task.categoryNameEn || task.category || "";
-}
-
 function portalCategoryStatsName(
   item: { category?: string; categoryName?: string; categoryNameEn?: string },
   language?: string,
+  enumItems?: BusinessEnumItem[],
 ) {
-  return isEnglishLanguage(language)
-    ? item.categoryNameEn || item.categoryName || item.category || "-"
-    : item.categoryName || item.categoryNameEn || item.category || "-";
+  return businessEnumLabel(enumItems, EnumType.taskCategory, item.category, language);
 }
 
 function portalCommentAuthor(author?: string, fallback = "-") {
@@ -197,12 +192,12 @@ export function CustomerPortalPage() {
 
   const data = query.data;
   const taskStatusOptions = useMemo(
-    () =>
-      Array.from(new Set(data?.taskStatuses || [])).map((status) => ({
-        label: status,
-        value: status,
-      })),
-    [data?.taskStatuses],
+    () => businessEnumOptions(data?.enumItems, EnumType.taskStatus, i18n.language),
+    [data?.enumItems, i18n.language],
+  );
+  const taskPriorityOptions = useMemo(
+    () => businessEnumOptions(data?.enumItems, EnumType.taskPriority, i18n.language),
+    [data?.enumItems, i18n.language],
   );
   const projectOptions = useMemo(
     () =>
@@ -302,29 +297,6 @@ export function CustomerPortalPage() {
 	  );
 	  const activePortalTask = taskDetailQuery.data || commentTask;
 
-  const announcementTypeLabels = useMemo(
-    () =>
-      new Map<string, string>([
-        ["普通公告", t("portal.announcementTypeGeneral")],
-        ["产品EOL公告", t("portal.announcementTypeEol")],
-      ]),
-    [t],
-  );
-
-  const customerProjectStatusLabels = useMemo(
-    () =>
-      new Map<string, string>([
-        ["商机发掘", t("portal.statusOpportunityDiscovery")],
-        ["样机测试", t("portal.statusSampleTesting")],
-        ["研发投入", t("portal.statusRnDInvestment")],
-        ["订单冲刺", t("portal.statusOrderSprint")],
-        ["首单护航", t("portal.statusFirstOrderSupport")],
-        ["量产维护", t("portal.statusMassProductionSupport")],
-        ["EOL 声明", t("portal.statusEolDeclaration")],
-        ["Support Ended", t("portal.statusSupportEnded")],
-      ]),
-    [t],
-  );
   const unreadCount = data?.unreadCount || 0;
   const statsChartOption = useMemo(() => {
     const stats = statsQuery.data;
@@ -392,7 +364,7 @@ export function CustomerPortalPage() {
   }, [statsQuery.data?.creators, t]);
   const statsCategoryOption = useMemo(() => {
     const rows = statsQuery.data?.categories || [];
-    const names = rows.map((item) => portalCategoryStatsName(item, i18n.language));
+    const names = rows.map((item) => portalCategoryStatsName(item, i18n.language, data?.enumItems));
     return {
       tooltip: { trigger: "axis" },
       legend: { top: 0 },
@@ -419,7 +391,7 @@ export function CustomerPortalPage() {
         },
       ],
     };
-  }, [statsQuery.data?.categories, i18n.language, t]);
+  }, [data?.enumItems, statsQuery.data?.categories, i18n.language, t]);
 
   if (!hasPortalToken) return <Navigate to="/customer-login" replace />;
 
@@ -741,7 +713,7 @@ export function CustomerPortalPage() {
                         <Tag color="processing" key={project.projectId}>
                           {project.projectName}
                           {project.projectStatus
-                            ? ` · ${customerProjectStatusLabels.get(project.projectStatus) || project.projectStatus}`
+                            ? ` · ${businessEnumLabel(data.enumItems, EnumType.customerProjectStatus, project.projectStatus, i18n.language)}`
                             : ""}
                         </Tag>
                       ))}
@@ -934,6 +906,7 @@ export function CustomerPortalPage() {
                       icon={<PlusOutlined />}
                       onClick={() => {
                         taskForm.resetFields();
+                        taskForm.setFieldsValue({ priority: firstEnumCode(data?.enumItems, EnumType.taskPriority, EnumCode.medium) });
                         setTaskModal(true);
                       }}
                     >
@@ -988,7 +961,7 @@ export function CustomerPortalPage() {
 	                      render: (_, task) => (
 	                        <TaskCategoryTag
 	                          value={task.category}
-	                          label={portalTaskCategoryLabel(task, i18n.language)}
+	                          label={businessEnumLabel(data?.enumItems, EnumType.taskCategory, task.category, i18n.language)}
 	                        />
 	                      ),
 	                    },
@@ -996,13 +969,13 @@ export function CustomerPortalPage() {
                       title: t("portal.status"),
                       dataIndex: "status",
                       width: 110,
-                      render: (value) => <StatusTag value={value} />,
+                      render: (value) => <StatusTag value={value} enumItems={data?.enumItems} enumType={EnumType.taskStatus} />,
                     },
                     {
                       title: t("portal.priority"),
                       dataIndex: "priority",
                       width: 90,
-                      render: (value) => <TaskPriorityTag value={value} />,
+                      render: (value) => <TaskPriorityTag value={value} label={businessEnumLabel(data?.enumItems, EnumType.taskPriority, value, i18n.language)} />,
                     },
                     {
                       title: t("portal.updatedAt"),
@@ -1184,11 +1157,7 @@ export function CustomerPortalPage() {
           <Form.Item name="priority" label={t("portal.priority")}>
             <Select
               allowClear
-              options={[
-                { label: t("portal.high"), value: "高" },
-                { label: t("portal.medium"), value: "中" },
-                { label: t("portal.low"), value: "低" },
-              ]}
+              options={taskPriorityOptions}
               placeholder={t("portal.defaultPriority")}
             />
           </Form.Item>
@@ -1240,11 +1209,11 @@ export function CustomerPortalPage() {
 	                </Tag>
 	                <TaskCategoryTag
 	                  value={activePortalTask.category}
-	                  label={portalTaskCategoryLabel(activePortalTask, i18n.language)}
+	                  label={businessEnumLabel(data?.enumItems, EnumType.taskCategory, activePortalTask.category, i18n.language)}
 	                />
-	                <StatusTag value={activePortalTask.status} />
+	                <StatusTag value={activePortalTask.status} enumItems={data?.enumItems} enumType={EnumType.taskStatus} />
 	                {activePortalTask.priority ? (
-	                  <Tag color="gold">{activePortalTask.priority}</Tag>
+	                  <TaskPriorityTag value={activePortalTask.priority} label={businessEnumLabel(data?.enumItems, EnumType.taskPriority, activePortalTask.priority, i18n.language)} />
 	                ) : null}
 	              </Space>
 	              <Typography.Title level={5}>{activePortalTask.title}</Typography.Title>
@@ -1421,9 +1390,7 @@ export function CustomerPortalPage() {
                       : "default"
                   }
                 >
-                  {announcementTypeLabels.get(
-                    selectedAnnouncement.announcementType,
-                  ) || selectedAnnouncement.announcementType}
+                  {businessEnumLabel(data?.enumItems, EnumType.announcementType, selectedAnnouncement.announcementType, i18n.language)}
                 </Tag>
               ) : null}
               <Typography.Text type="secondary">

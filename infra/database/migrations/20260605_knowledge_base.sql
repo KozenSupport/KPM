@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS kpm_knowledge_articles (
   solution TEXT,
   workaround TEXT,
   attachments JSONB NOT NULL DEFAULT '[]'::jsonb,
-  status TEXT NOT NULL DEFAULT '待审核',
+  status TEXT NOT NULL DEFAULT 'PENDING_REVIEW',
   author_user_id BIGINT REFERENCES kpm_users(id) ON DELETE SET NULL,
   author_name TEXT,
   published_at TIMESTAMP,
@@ -77,11 +77,11 @@ CREATE INDEX IF NOT EXISTS idx_kpm_knowledge_tasks_task
 
 INSERT INTO kpm_permissions (code, name, permission_type, target, location)
 VALUES
-  ('menu:knowledge','知识库管理','menu','知识库管理','左侧菜单'),
-  ('button:knowledge:create','知识库 / 新增文章','button','新增文章','知识库管理'),
-  ('button:knowledge:edit','知识库 / 编辑文章','button','编辑文章','知识库管理'),
-  ('button:knowledge:delete','知识库 / 删除文章','button','删除文章','知识库管理'),
-  ('button:knowledge:review','知识库 / 审核发布','button','审核发布','知识库管理')
+  ('menu:knowledge','知识库管理','MENU','知识库管理','左侧菜单'),
+  ('button:knowledge:create','知识库 / 新增文章','BUTTON','新增文章','知识库管理'),
+  ('button:knowledge:edit','知识库 / 编辑文章','BUTTON','编辑文章','知识库管理'),
+  ('button:knowledge:delete','知识库 / 删除文章','BUTTON','删除文章','知识库管理'),
+  ('button:knowledge:review','知识库 / 审核发布','BUTTON','审核发布','知识库管理')
 ON CONFLICT (code) DO UPDATE
 SET name=EXCLUDED.name,
     permission_type=EXCLUDED.permission_type,

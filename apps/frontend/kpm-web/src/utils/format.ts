@@ -1,4 +1,4 @@
-import type { AnyRecord, EnumItem, Order } from '../types';
+import type { AnyRecord, Order } from '../types';
 
 export function asArray<T = any>(value: unknown): T[] {
   return Array.isArray(value) ? value as T[] : [];
@@ -62,25 +62,6 @@ export function compactId(id = '', type = ''): string {
   return `${prefix}-${value.slice(-8)}`;
 }
 
-export function enumValues(items: EnumItem[], enumType: string, fallback: string[] = []): string[] {
-  const values = items
-    .filter((item) => item.enumType === enumType && item.active !== false)
-    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    .map((item) => item.value || item.name || '')
-    .filter(Boolean);
-  return values.length ? values : fallback;
-}
-
-export function isEnglishLanguage(language?: string): boolean {
-  return String(language || '').toLowerCase().startsWith('en');
-}
-
-export function enumDisplayLabel(item: EnumItem | undefined, language?: string): string {
-  if (!item) return '';
-  if (isEnglishLanguage(language)) return item.nameEn || item.name || item.value || '';
-  return item.name || item.value || '';
-}
-
 export function parseJsonObject(value: unknown): AnyRecord {
   if (!value) return {};
   if (typeof value === 'object' && !Array.isArray(value)) return value as AnyRecord;
@@ -93,7 +74,7 @@ export function parseJsonObject(value: unknown): AnyRecord {
 }
 
 export function orderType(order: Order): string {
-  return order.orderType || order.type || '正式订单';
+  return order.orderType || order.type || 'FORMAL';
 }
 
 export function unique<T>(items: T[]): T[] {
@@ -110,14 +91,7 @@ export function includesKeyword(source: AnyRecord | unknown[], keyword: string, 
 }
 
 const closedTaskStatuses = new Set([
-  '已完成',
-  '完成',
-  '已关闭',
-  '关闭',
-  '已拒绝',
-  '拒绝',
-  '作废',
-  '取消',
+  'COMPLETED',
   'DONE',
   'CLOSED',
   'REJECTED',
@@ -134,8 +108,7 @@ export function isClosedTaskStatus(status?: unknown): boolean {
 
 
 const completedTaskStatuses = new Set([
-  '已完成',
-  '完成',
+  'COMPLETED',
   'DONE',
   'CLOSED',
 ]);

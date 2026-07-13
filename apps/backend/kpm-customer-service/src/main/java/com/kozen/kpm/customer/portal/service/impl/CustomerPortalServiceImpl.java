@@ -3,7 +3,7 @@ package com.kozen.kpm.customer.portal.service.impl;
 import com.kozen.kpm.common.api.PageResult;
 import com.kozen.kpm.common.auth.AuthTokenUtil;
 import com.kozen.kpm.common.util.IdUtil;
-import com.kozen.kpm.common.util.BusinessEnumValues;
+import com.kozen.kpm.common.util.BusinessEnumCodes;
 import com.kozen.kpm.common.util.JsonUtil;
 import com.kozen.kpm.common.util.PageParamUtil;
 import com.kozen.kpm.customer.knowledge.dto.KnowledgeArticleDto;
@@ -137,7 +137,7 @@ public class CustomerPortalServiceImpl implements com.kozen.kpm.customer.portal.
         return new CustomerPortalDataDto(
                 converter.toMeDto(contact),
                 mapper.projects(customerId).stream().map(converter::toProjectDto).toList(),
-                mapper.taskStatuses(customerId),
+                mapper.portalEnumItems().stream().map(converter::toEnumItemDto).toList(),
                 mapper.announcements(customerId).stream().map(converter::toAnnouncementDto).toList(),
                 mapper.messages(contact.getEmail(), false).stream().map(converter::toMessageDto).toList(),
                 mapper.unreadCount(contact.getEmail())
@@ -187,9 +187,11 @@ public class CustomerPortalServiceImpl implements com.kozen.kpm.customer.portal.
         }
         String id = IdUtil.nanoId("task");
         String taskNo = contact.getCustomerShortName().trim().toUpperCase() + mapper.nextTaskNumber();
-        String category = firstNonBlank(mapper.enumExactValue("task_category", BusinessEnumValues.TASK_CATEGORY_SUPPORT), BusinessEnumValues.TASK_CATEGORY_SUPPORT);
-        String status = firstNonBlank(mapper.enumExactValue("task_status", BusinessEnumValues.TASK_STATUS_TODO), BusinessEnumValues.TASK_STATUS_TODO);
-        String priority = firstNonBlank(request.priority(), mapper.enumExactValue("task_priority", BusinessEnumValues.TASK_PRIORITY_MEDIUM), BusinessEnumValues.TASK_PRIORITY_MEDIUM);
+        String category = requiredEnumValue("task_category", BusinessEnumCodes.TASK_CATEGORY_SUPPORT, "客户门户任务分类");
+        String status = requiredEnumValue("task_status", BusinessEnumCodes.TASK_STATUS_PENDING, "默认任务状态");
+        String priority = request.priority() == null || request.priority().isBlank()
+                ? requiredEnumValue("task_priority", BusinessEnumCodes.PRIORITY_MEDIUM, "默认任务优先级")
+                : requiredEnumValue("task_priority", request.priority(), "任务优先级");
         String creator = contactAuthor(contact);
         mapper.insertTask(id, taskNo, request.title().trim(), request.description().trim(), request.projectId(), category, status, priority, creator, contact.getCustomerId());
         for (CustomerPortalSupportOwnerEntity owner : supportOwners) {
@@ -266,22 +268,17 @@ public class CustomerPortalServiceImpl implements com.kozen.kpm.customer.portal.
                     IdUtil.numericId(),
                     taskId,
                     fileName,
-                    firstNonBlank(metadataValue(attachment, "fileType"), metadataValue(attachment, "type")),
-                    firstNonBlank(metadataValue(attachment, "fileSize"), metadataValue(attachment, "size")),
+                    metadataValue(attachment, "fileType"),
+                    metadataValue(attachment, "fileSize"),
                     firstNonBlank(metadataValue(attachment, "uploader"), uploader),
                     metadataValue(attachment, "bucket"),
                     firstNonBlank(metadataValue(attachment, "objectKey"), metadataValue(attachment, "object_key")),
                     firstNonBlank(metadataValue(attachment, "storageUrl"), metadataValue(attachment, "storage_url"), metadataValue(attachment, "url")),
-                    firstNonBlank(metadataValue(attachment, "storageCategory"), metadataValue(attachment, "category"))
+                    metadataValue(attachment, "storageCategory")
             );
         }
         CustomerPortalTaskEntity task = mapper.task(contact.getCustomerId(), taskId);
         return converter.toTaskDto(task, mapper.taskAttachments(contact.getCustomerId(), taskId), List.of());
-    }
-
-    @Override
-    public List<String> taskStatuses(String authorizationHeader) {
-        return mapper.taskStatuses(currentContact(authorizationHeader).getCustomerId());
     }
 
     @Override
@@ -497,5 +494,13 @@ public class CustomerPortalServiceImpl implements com.kozen.kpm.customer.portal.
             if (value != null && !value.isBlank()) return value.trim();
         }
         return "";
+    }
+
+    private String requiredEnumValue(String enumType, String code, String label) {
+        String configured = mapper.enumExactValue(enumType, code);
+        if (configured == null || configured.isBlank()) {
+            throw new IllegalArgumentException(label + "不是已启用的枚举Code：" + code);
+        }
+        return configured;
     }
 }

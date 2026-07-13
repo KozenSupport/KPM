@@ -1,0 +1,46 @@
+/** Stable machine-readable values exchanged with the KPM APIs. */
+export const EnumType = {
+  stageStatus: "stage_status",
+  customerStatus: "customer_master_status",
+  customerProjectStatus: "customer_project_status",
+  customerLevel: "customer_level",
+  orderType: "order_type",
+  orderStatus: "order_status",
+  taskCategory: "task_category",
+  taskStatus: "task_status",
+  priority: "priority",
+  taskPriority: "task_priority",
+  requirementStatus: "requirement_status",
+  currency: "currency",
+  announcementType: "project_announcement_type",
+  userStatus: "user_status",
+} as const;
+
+export const EnumCode = {
+  active: "ACTIVE",
+  inactive: "INACTIVE",
+  global: "GLOBAL",
+  project: "PROJECT",
+  menu: "MENU",
+  button: "BUTTON",
+  notStarted: "NOT_STARTED",
+  inProgress: "IN_PROGRESS",
+  completed: "COMPLETED",
+  pending: "PENDING",
+  rejected: "REJECTED",
+  high: "HIGH",
+  medium: "MEDIUM",
+  low: "LOW",
+  requirement: "REQUIREMENT",
+  bug: "BUG",
+  technicalSupport: "TECHNICAL_SUPPORT",
+  other: "OTHER",
+  formalOrder: "FORMAL",
+  generalAnnouncement: "GENERAL",
+  published: "PUBLISHED",
+  retracted: "RETRACTED",
+  pendingReview: "PENDING_REVIEW",
+  taskSourceStageDetail: "STAGE_DETAIL",
+} as const;
+
+export const BUSINESS_ENUM_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;

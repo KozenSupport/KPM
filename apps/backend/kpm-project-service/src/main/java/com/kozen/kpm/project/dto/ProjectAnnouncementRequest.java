@@ -1,12 +1,15 @@
 package com.kozen.kpm.project.dto;
 
+import com.kozen.kpm.common.util.BusinessEnumCodes;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 @Schema(description = "项目公告发布请求")
 public record ProjectAnnouncementRequest(
         @Size(max = 60, message = "公告类型不能超过60个字符")
+        @Pattern(regexp = "^$|" + BusinessEnumCodes.CODE_PATTERN, message = "公告类型必须使用枚举Code")
         String announcementType,
         @NotBlank(message = "公告标题不能为空")
         @Size(max = 120, message = "公告标题不能超过120个字符")

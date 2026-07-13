@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS kpm_project_announcements (
   project_id BIGINT NOT NULL REFERENCES kpm_projects(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
-  announcement_type TEXT NOT NULL DEFAULT '普通公告',
+  announcement_type TEXT NOT NULL DEFAULT 'GENERAL',
   publisher TEXT,
   published_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   creator TEXT,
@@ -55,7 +55,7 @@ CREATE INDEX IF NOT EXISTS idx_kpm_customer_portal_messages_contact
   WHERE del_flag=0;
 
 INSERT INTO kpm_permissions (id, code, name, permission_type, target, location)
-VALUES (3097,'button:project-detail:publish-announcement','项目详情 / 发布公告','按钮权限','发布公告','项目详情')
+VALUES (3097,'button:project-detail:publish-announcement','项目详情 / 发布公告','BUTTON','发布公告','项目详情')
 ON CONFLICT (code) DO UPDATE SET
   name=excluded.name, permission_type=excluded.permission_type, target=excluded.target, location=excluded.location, del_flag=0, update_time=current_timestamp;
 

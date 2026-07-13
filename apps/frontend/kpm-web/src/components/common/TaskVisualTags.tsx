@@ -21,10 +21,10 @@ function stableColor(value?: string | null) {
 }
 
 function priorityColor(value?: string | null) {
-  const text = String(value || '').toLowerCase();
-  if (text.includes('高') || text.includes('high') || text.includes('urgent')) return 'red';
-  if (text.includes('中') || text.includes('medium')) return 'gold';
-  if (text.includes('低') || text.includes('low')) return 'green';
+  const code = String(value || '').toUpperCase();
+  if (code === 'HIGH' || code === 'URGENT') return 'red';
+  if (code === 'MEDIUM') return 'gold';
+  if (code === 'LOW') return 'green';
   return 'default';
 }
 
@@ -38,10 +38,10 @@ export function TaskCategoryTag({ value, label }: TagProps) {
   );
 }
 
-export function TaskPriorityTag({ value }: TagProps) {
+export function TaskPriorityTag({ value, label }: TagProps) {
   const text = String(value || '').trim();
   if (!text) return <Tag className="kpm-priority-tag">-</Tag>;
-  return <Tag className="kpm-priority-tag" color={priorityColor(text)}>{text}</Tag>;
+  return <Tag className="kpm-priority-tag" color={priorityColor(text)}>{label || text}</Tag>;
 }
 
 export function TaskProjectTag({ value }: TagProps) {

@@ -1,4 +1,4 @@
-import type { AnyRecord, Id } from "./domain";
+import type { AnyRecord, BusinessEnumItem, Id } from "./domain";
 
 export type CustomerPortalUser = {
   customerId: Id;
@@ -148,7 +148,7 @@ export type CustomerPortalTaskCommentPage = {
 export type CustomerPortalData = {
   user: CustomerPortalUser;
   projects: CustomerPortalProject[];
-  taskStatuses: string[];
+  enumItems: BusinessEnumItem[];
   announcements: CustomerPortalAnnouncement[];
   messages: CustomerPortalMessage[];
   unreadCount: number;

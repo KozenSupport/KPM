@@ -44,13 +44,13 @@ TRUNCATE TABLE
 RESTART IDENTITY CASCADE;
 
 INSERT INTO kpm_departments (id, name, status)
-VALUES (101, '系统管理部', '启用');
+VALUES (101, '系统管理部', 'ACTIVE');
 
 INSERT INTO kpm_roles (id, name, role_type, status)
-VALUES (2001, 'CTO', '全局角色', '启用');
+VALUES (2001, 'CTO', 'GLOBAL', 'ACTIVE');
 
 INSERT INTO kpm_users (id, account, email, name, password_hash, status)
-VALUES (1001, 'admin@kozenmobile.com', 'admin@kozenmobile.com', '系统管理员', '{noop}123456', '启用');
+VALUES (1001, 'admin@kozenmobile.com', 'admin@kozenmobile.com', '系统管理员', '{noop}123456', 'ACTIVE');
 
 INSERT INTO kpm_user_departments (user_id, department_id)
 VALUES (1001, 101);

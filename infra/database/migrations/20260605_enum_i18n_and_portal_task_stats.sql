@@ -6,10 +6,10 @@ UPDATE kpm_enum_items
 SET label_en = COALESCE(label_en, name),
     update_time = CURRENT_TIMESTAMP;
 
-UPDATE kpm_enum_items SET label_en='Requirement', update_time=CURRENT_TIMESTAMP WHERE enum_type='task_category' AND value='需求';
-UPDATE kpm_enum_items SET label_en='Bug', update_time=CURRENT_TIMESTAMP WHERE enum_type='task_category' AND value='Bug';
-UPDATE kpm_enum_items SET label_en='Support', update_time=CURRENT_TIMESTAMP WHERE enum_type='task_category' AND value='技术支持';
-UPDATE kpm_enum_items SET label_en='Other', update_time=CURRENT_TIMESTAMP WHERE enum_type='task_category' AND value='其他';
-UPDATE kpm_enum_items SET label_en='High', update_time=CURRENT_TIMESTAMP WHERE enum_type IN ('task_priority','priority') AND value='高';
-UPDATE kpm_enum_items SET label_en='Medium', update_time=CURRENT_TIMESTAMP WHERE enum_type IN ('task_priority','priority') AND value='中';
-UPDATE kpm_enum_items SET label_en='Low', update_time=CURRENT_TIMESTAMP WHERE enum_type IN ('task_priority','priority') AND value='低';
+UPDATE kpm_enum_items SET label_en='Requirement', update_time=CURRENT_TIMESTAMP WHERE enum_type='task_category' AND value='REQUIREMENT';
+UPDATE kpm_enum_items SET label_en='Bug', update_time=CURRENT_TIMESTAMP WHERE enum_type='task_category' AND value='BUG';
+UPDATE kpm_enum_items SET label_en='Technical Support', update_time=CURRENT_TIMESTAMP WHERE enum_type='task_category' AND value='TECHNICAL_SUPPORT';
+UPDATE kpm_enum_items SET label_en='Other', update_time=CURRENT_TIMESTAMP WHERE enum_type='task_category' AND value='OTHER';
+UPDATE kpm_enum_items SET label_en='High', update_time=CURRENT_TIMESTAMP WHERE enum_type IN ('task_priority','priority') AND value='HIGH';
+UPDATE kpm_enum_items SET label_en='Medium', update_time=CURRENT_TIMESTAMP WHERE enum_type IN ('task_priority','priority') AND value='MEDIUM';
+UPDATE kpm_enum_items SET label_en='Low', update_time=CURRENT_TIMESTAMP WHERE enum_type IN ('task_priority','priority') AND value='LOW';

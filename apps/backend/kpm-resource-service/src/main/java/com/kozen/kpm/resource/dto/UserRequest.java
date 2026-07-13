@@ -1,8 +1,10 @@
 package com.kozen.kpm.resource.dto;
 
+import com.kozen.kpm.common.util.BusinessEnumCodes;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
@@ -35,6 +37,7 @@ public record UserRequest(
         List<String> directPermissions,
 
         @Size(max = 20, message = "状态不能超过20个字符")
+        @Pattern(regexp = "ACTIVE|INACTIVE", message = "用户状态只能是ACTIVE或INACTIVE")
         String status
 ) {
     public String loginAccount() {
@@ -47,7 +50,7 @@ public record UserRequest(
     }
 
     public String normalizedStatus() {
-        return status == null || status.isBlank() ? "启用" : status.trim();
+        return status == null || status.isBlank() ? BusinessEnumCodes.ACTIVE : status.trim();
     }
 
     public List<String> safeDepartments() { return departments == null ? List.of() : departments; }

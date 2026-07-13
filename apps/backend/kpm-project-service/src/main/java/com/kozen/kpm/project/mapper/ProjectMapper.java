@@ -128,7 +128,7 @@ public interface ProjectMapper {
 
     @Select("""
             select value from kpm_enum_items
-            where enum_type=#{enumType} and active=true
+            where enum_type=#{enumType} and active=true and del_flag=0
             order by sort_order, id
             limit 1
             """)
@@ -358,14 +358,14 @@ public interface ProjectMapper {
     @Insert("""
             insert into kpm_project_materials
             (id, project_id, source_stage, file_name, file_type, file_size, description, uploader, bucket, object_key, storage_url, storage_category, share_target, public_visible)
-            values (#{id}, #{material.projectId}, #{material.stageName}, #{material.fileName}, #{material.fileType}, #{material.fileSize}, #{material.description}, #{material.uploader}, #{material.bucket}, #{material.objectKey}, #{material.storageUrl}, #{material.storageCategory}, '项目资料区', false)
+            values (#{id}, #{material.projectId}, #{material.stageName}, #{material.fileName}, #{material.fileType}, #{material.fileSize}, #{material.description}, #{material.uploader}, #{material.bucket}, #{material.objectKey}, #{material.storageUrl}, #{material.storageCategory}, 'PROJECT_MATERIALS', false)
             """)
     void insertProjectMaterial(@Param("id") String id, @Param("material") ProjectFileEntity material);
 
     @Insert("""
             insert into kpm_project_materials
             (id, project_id, source_stage, file_name, file_type, file_size, description, uploader, bucket, object_key, storage_url, storage_category, share_target, public_visible)
-            values (#{id}, #{projectId}, '直接上传', #{request.fileName}, #{request.fileType}, #{request.fileSize}, #{request.description}, #{request.uploader}, #{request.bucket}, #{request.objectKey}, #{request.storageUrl}, coalesce(#{request.storageCategory}, #{request.category}), '项目资料区', false)
+            values (#{id}, #{projectId}, '直接上传', #{request.fileName}, #{request.fileType}, #{request.fileSize}, #{request.description}, #{request.uploader}, #{request.bucket}, #{request.objectKey}, #{request.storageUrl}, coalesce(#{request.storageCategory}, #{request.category}), 'PROJECT_MATERIALS', false)
             """)
     void insertProjectMaterialFromRequest(@Param("id") String id, @Param("projectId") String projectId, @Param("request") FileMetadataRequest request);
 
@@ -541,12 +541,12 @@ public interface ProjectMapper {
 
     @Update("""
             update kpm_project_announcements
-            set announcement_status='撤回',
+            set announcement_status='RETRACTED',
                 retracted_at=current_timestamp,
                 retracted_by=#{operator},
                 updator=#{operator},
                 update_time=current_timestamp
-            where id=#{announcementId} and project_id=#{projectId} and del_flag=0 and announcement_status='已发布'
+            where id=#{announcementId} and project_id=#{projectId} and del_flag=0 and announcement_status='PUBLISHED'
             """)
     int retractProjectAnnouncement(@Param("projectId") String projectId, @Param("announcementId") String announcementId, @Param("operator") String operator);
 
@@ -591,7 +591,7 @@ public interface ProjectMapper {
     @Select("""
             select id, name, scope, status, updated_at as updatedAt
             from kpm_process_templates
-            where status='启用' and del_flag=0
+            where status='ACTIVE' and del_flag=0
             order by updated_at desc, name
             """)
     List<ProcessTemplateEntity> activeTemplates();
@@ -605,7 +605,7 @@ public interface ProjectMapper {
     @Update("update kpm_process_templates set name=#{command.name}, scope=#{command.scope}, status=#{command.status}, updated_at=current_date, update_time=current_timestamp where id=#{command.id} and del_flag=0")
     void updateTemplate(@Param("command") ProcessTemplateWriteCommand command);
 
-    @Update("update kpm_process_templates set del_flag=1, status='停用', update_time=current_timestamp where id=#{id}")
+    @Update("update kpm_process_templates set del_flag=1, status='INACTIVE', update_time=current_timestamp where id=#{id}")
     void deleteTemplate(@Param("id") String id);
 
     @Update("update kpm_template_stages set del_flag=1, update_time=current_timestamp where template_id=#{templateId}")

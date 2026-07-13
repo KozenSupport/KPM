@@ -1,7 +1,9 @@
 package com.kozen.kpm.customer.portal.dto;
 
+import com.kozen.kpm.common.util.BusinessEnumCodes;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 @Schema(description = "客户门户创建任务请求")
@@ -15,5 +17,6 @@ public record CustomerPortalTaskRequest(
         @Size(max = 3000, message = "任务描述不能超过3000个字符")
         String description,
         @Size(max = 40, message = "优先级不能超过40个字符")
+        @Pattern(regexp = "^$|" + BusinessEnumCodes.CODE_PATTERN, message = "优先级必须使用枚举Code")
         String priority
 ) {}

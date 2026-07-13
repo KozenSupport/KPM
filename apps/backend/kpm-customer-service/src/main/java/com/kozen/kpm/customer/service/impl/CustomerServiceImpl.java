@@ -2,7 +2,7 @@ package com.kozen.kpm.customer.service.impl;
 
 import com.kozen.kpm.common.api.PageResult;
 import com.kozen.kpm.common.dto.FileMetadataRequest;
-import com.kozen.kpm.common.util.BusinessEnumValues;
+import com.kozen.kpm.common.util.BusinessEnumCodes;
 import com.kozen.kpm.common.util.IdUtil;
 import com.kozen.kpm.common.util.PageParamUtil;
 import com.kozen.kpm.common.util.SqlParamUtil;
@@ -217,15 +217,22 @@ public class CustomerServiceImpl implements CustomerService {
 
     private String resolveDefault(Object value, String enumType, String label) {
         if (value != null && !String.valueOf(value).isBlank()) {
-            return String.valueOf(value);
+            String configured = customerMapper.enumExactValue(enumType, String.valueOf(value));
+            if (configured == null || configured.isBlank()) {
+                throw new IllegalArgumentException(label + "不是已启用的枚举Code：" + value);
+            }
+            return configured;
         }
         String stableDefault = switch (enumType) {
-            case "customer_level" -> BusinessEnumValues.CUSTOMER_LEVEL_NORMAL;
-            case "customer_master_status" -> BusinessEnumValues.CUSTOMER_STATUS_POTENTIAL;
+            case "customer_level" -> BusinessEnumCodes.CUSTOMER_LEVEL_STANDARD;
+            case "customer_master_status" -> BusinessEnumCodes.CUSTOMER_STATUS_PROSPECT;
             default -> null;
         };
         if (stableDefault != null) {
-            return stableDefault;
+            String configured = customerMapper.enumExactValue(enumType, stableDefault);
+            if (configured != null && !configured.isBlank()) {
+                return configured;
+            }
         }
         String defaultValue = customerMapper.defaultEnumValue(enumType);
         if (defaultValue == null || defaultValue.isBlank()) {

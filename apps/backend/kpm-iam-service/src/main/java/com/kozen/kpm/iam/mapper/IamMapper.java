@@ -88,7 +88,7 @@ public interface IamMapper {
             from kpm_tasks t
             join kpm_task_assignees ta on ta.task_id = t.id
             where ta.user_id = cast(#{userId} as bigint)
-              and t.status = '已完成'
+              and t.status = 'COMPLETED'
               and t.del_flag = 0
               and ta.del_flag = 0
             """)

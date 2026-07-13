@@ -2,6 +2,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import { Button, Card, Form, Input, Modal, Select, Space, Table, Tag, message } from 'antd';
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ActionButtons } from '../components/common/ActionButtons';
 import { DataState } from '../components/common/DataState';
@@ -12,10 +13,13 @@ import { useActionLock } from '../hooks/useActionLock';
 import { confirmSubmit } from '../hooks/useConfirmingForm';
 import { kpmApi } from '../services/kpmApi';
 import type { AnyRecord, Project } from '../types';
+import { EnumCode } from '../types/businessEnums';
+import { fixedEnumLabel } from '../utils/businessEnums';
 import { validationRules } from '../validation';
 
 export function ProjectsPage() {
   const { data, isLoading, error } = useKpmData();
+  const { i18n } = useTranslation();
   const refresh = useRefreshKpmData();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -28,15 +32,15 @@ export function ProjectsPage() {
   const { isLocked, runLocked } = useActionLock();
   const templates = templateRows ?? data?.templates ?? [];
   const activeTemplates = useMemo(
-    () => templates.filter((item) => item.status === '启用'),
+    () => templates.filter((item) => item.status === EnumCode.active),
     [templates],
   );
   const templateOptions = useMemo(
     () => templates.map((item) => ({
-      label: `${item.name || item.id}${item.scope ? ` / ${item.scope}` : ''}${item.status ? `（${item.status}）` : ''}`,
+      label: `${item.name || item.id}${item.scope ? ` / ${item.scope}` : ''}${item.status ? `（${fixedEnumLabel(item.status, i18n.language)}）` : ''}`,
       value: String(item.id),
     })),
-    [templates],
+    [i18n.language, templates],
   );
   const activeTemplateOptions = useMemo(
     () => activeTemplates.map((item) => ({
@@ -66,7 +70,7 @@ export function ProjectsPage() {
   async function openCreate() {
     await runLocked('project-template-refresh', async () => {
       const latestTemplates = await kpmApi.templates();
-      const latestActiveTemplates = latestTemplates.filter((item) => item.status === '启用');
+      const latestActiveTemplates = latestTemplates.filter((item) => item.status === EnumCode.active);
       setTemplateRows(latestTemplates);
       setEditing(null);
       form.resetFields();
@@ -95,8 +99,8 @@ export function ProjectsPage() {
       const latestTemplates = await kpmApi.templates();
       setTemplateRows(latestTemplates);
       const selectedTemplate = latestTemplates.find((item) => String(item.id) === String(values.templateId));
-      if (!selectedTemplate || selectedTemplate.status !== '启用') {
-        const firstActive = latestTemplates.find((item) => item.status === '启用');
+      if (!selectedTemplate || selectedTemplate.status !== EnumCode.active) {
+        const firstActive = latestTemplates.find((item) => item.status === EnumCode.active);
         form.setFieldsValue({ templateId: firstActive?.id ? String(firstActive.id) : undefined });
         message.warning('所选流程模板已不是启用状态，请重新选择流程模板');
         return;

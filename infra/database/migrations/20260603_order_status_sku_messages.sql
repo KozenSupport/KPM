@@ -24,11 +24,11 @@ ALTER TABLE kpm_orders ADD COLUMN IF NOT EXISTS status TEXT;
 ALTER TABLE kpm_orders ADD COLUMN IF NOT EXISTS actual_ship_date DATE;
 
 INSERT INTO kpm_enum_items (id, enum_type, name, value, label_en, active, sort_order) VALUES
-('enum-order-status-1','order_status','已创建','已创建','Created',true,10),
-('enum-order-status-2','order_status','生产中','生产中','In Production',true,20),
-('enum-order-status-3','order_status','已发货','已发货','Shipped',true,30),
-('enum-order-status-4','order_status','已收货','已收货','Received',true,40),
-('enum-order-status-5','order_status','已完成','已完成','Completed',true,50)
+('enum-order-status-1','order_status','已创建','CREATED','Created',true,10),
+('enum-order-status-2','order_status','生产中','IN_PRODUCTION','In Production',true,20),
+('enum-order-status-3','order_status','已发货','SHIPPED','Shipped',true,30),
+('enum-order-status-4','order_status','已收货','RECEIVED','Received',true,40),
+('enum-order-status-5','order_status','已完成','COMPLETED','Completed',true,50)
 ON CONFLICT (enum_type, value) DO UPDATE
 SET name=EXCLUDED.name,
     label_en=EXCLUDED.label_en,

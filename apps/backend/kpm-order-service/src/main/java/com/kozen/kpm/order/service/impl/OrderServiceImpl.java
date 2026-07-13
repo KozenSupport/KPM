@@ -1,7 +1,7 @@
 package com.kozen.kpm.order.service.impl;
 
 import com.kozen.kpm.common.api.PageResult;
-import com.kozen.kpm.common.util.BusinessEnumValues;
+import com.kozen.kpm.common.util.BusinessEnumCodes;
 import com.kozen.kpm.common.util.IdUtil;
 import com.kozen.kpm.common.util.JsonUtil;
 import com.kozen.kpm.common.util.PageParamUtil;
@@ -100,6 +100,8 @@ public class OrderServiceImpl implements OrderService {
     public OrderDto create(OrderRequest request) {
         String orderId = request.id() == null || request.id().isBlank() ? nextOrderId() : request.id();
         UserLookupEntity creator = requireUser(request.creator(), "订单创建人");
+        requireConfiguredValue("order_type", request.safeOrderType(), "订单类型");
+        requireConfiguredValue("currency", request.safeCurrency(), "币种");
         OrderSkuSnapshotDto skuSnapshot = skuSnapshot(request.projectId(), request.skuId());
         String status = resolveOrderStatus(request.safeStatus());
         String actualShipDate = shouldMarkShipped(null, status) ? LocalDate.now().toString() : null;
@@ -115,6 +117,8 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderDto update(String id, OrderRequest request) {
         OrderDto before = detail(id);
+        requireConfiguredValue("order_type", request.safeOrderType(), "订单类型");
+        requireConfiguredValue("currency", request.safeCurrency(), "币种");
         OrderSkuSnapshotDto skuSnapshot = skuSnapshot(request.projectId(), request.skuId());
         String status = resolveOrderStatus(request.safeStatus());
         String previousActualShipDate = stringValue(before.actualShipDate());
@@ -209,13 +213,21 @@ public class OrderServiceImpl implements OrderService {
 
     private String resolveOrderStatus(String requestedStatus) {
         if (requestedStatus != null && !requestedStatus.isBlank()) {
-            return requestedStatus;
+            return requireConfiguredValue("order_status", requestedStatus, "订单状态");
         }
-        String status = orderMapper.enumExactValue("order_status", BusinessEnumValues.ORDER_STATUS_CREATED);
+        String status = orderMapper.enumExactValue("order_status", BusinessEnumCodes.ORDER_STATUS_CREATED);
         if (status == null || status.isBlank()) {
-            throw new IllegalArgumentException("订单状态未配置枚举值：" + BusinessEnumValues.ORDER_STATUS_CREATED);
+            throw new IllegalArgumentException("订单状态未配置枚举值：" + BusinessEnumCodes.ORDER_STATUS_CREATED);
         }
         return status;
+    }
+
+    private String requireConfiguredValue(String enumType, String code, String label) {
+        String configured = orderMapper.enumExactValue(enumType, code);
+        if (configured == null || configured.isBlank()) {
+            throw new IllegalArgumentException(label + "不是已启用的枚举Code：" + code);
+        }
+        return configured;
     }
 
     private OrderSkuSnapshotDto skuSnapshot(String projectId, String skuId) {
@@ -233,7 +245,7 @@ public class OrderServiceImpl implements OrderService {
         if (String.valueOf(nextStatus).equals(String.valueOf(previousStatus))) {
             return false;
         }
-        return BusinessEnumValues.ORDER_STATUS_SHIPPED.equals(orderMapper.enumExactValue("order_status", nextStatus));
+        return BusinessEnumCodes.ORDER_STATUS_SHIPPED.equals(orderMapper.enumExactValue("order_status", nextStatus));
     }
 
     private void ensureProjectCustomer(String projectId, String customerId, String orderType) {
@@ -248,9 +260,9 @@ public class OrderServiceImpl implements OrderService {
 
     private String customerProjectStatusByOrderType(String orderType) {
         return switch (String.valueOf(orderType)) {
-            case BusinessEnumValues.ORDER_TYPE_SAMPLE -> BusinessEnumValues.CUSTOMER_PROJECT_SAMPLE_TEST;
-            case BusinessEnumValues.ORDER_TYPE_PRE_ORDER -> BusinessEnumValues.CUSTOMER_PROJECT_OPPORTUNITY;
-            case BusinessEnumValues.ORDER_TYPE_FORMAL -> BusinessEnumValues.CUSTOMER_PROJECT_ORDER_SPRINT;
+            case BusinessEnumCodes.ORDER_TYPE_SAMPLE -> BusinessEnumCodes.CUSTOMER_PROJECT_SAMPLE_TESTING;
+            case BusinessEnumCodes.ORDER_TYPE_PRE_ORDER -> BusinessEnumCodes.CUSTOMER_PROJECT_OPPORTUNITY_DISCOVERY;
+            case BusinessEnumCodes.ORDER_TYPE_FORMAL -> BusinessEnumCodes.CUSTOMER_PROJECT_ORDER_SPRINT;
             default -> throw new IllegalArgumentException("订单类型未配置客户项目状态映射：" + orderType);
         };
     }

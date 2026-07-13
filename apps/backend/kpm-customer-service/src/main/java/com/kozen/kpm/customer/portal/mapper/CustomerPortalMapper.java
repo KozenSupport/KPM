@@ -1,6 +1,7 @@
 package com.kozen.kpm.customer.portal.mapper;
 
 import com.kozen.kpm.customer.portal.entity.CustomerPortalContactEntity;
+import com.kozen.kpm.customer.portal.entity.CustomerPortalEnumItemEntity;
 import com.kozen.kpm.customer.portal.entity.CustomerPortalAnnouncementEntity;
 import com.kozen.kpm.customer.portal.entity.CustomerPortalMaterialEntity;
 import com.kozen.kpm.customer.portal.entity.CustomerPortalMessageEntity;
@@ -56,6 +57,26 @@ public interface CustomerPortalMapper {
             order by cc.name, cc.email
             """)
     List<CustomerPortalContactEntity> contacts(@Param("customerId") String customerId);
+
+    @Select("""
+            select enum_type as enumType,
+                   value,
+                   name,
+                   label_en as nameEn,
+                   sort_order as sortOrder
+            from kpm_enum_items
+            where del_flag=0
+              and active=true
+              and enum_type in (
+                'task_status',
+                'task_priority',
+                'task_category',
+                'customer_project_status',
+                'project_announcement_type'
+              )
+            order by enum_type, sort_order, id
+            """)
+    List<CustomerPortalEnumItemEntity> portalEnumItems();
 
 
     @Select("""
@@ -141,7 +162,7 @@ public interface CustomerPortalMapper {
             join kpm_projects p on p.id=a.project_id and p.del_flag=0
             where pc.customer_id=#{customerId}
               and a.del_flag=0
-              and a.announcement_status='已发布'
+              and a.announcement_status='PUBLISHED'
             order by a.published_at desc
             limit 20
             """)
@@ -278,17 +299,6 @@ public interface CustomerPortalMapper {
                         @Param("creatorEmail") String creatorEmail);
 
     @Select("""
-            select distinct t.status
-            from kpm_tasks t
-            where t.customer_id=#{customerId}
-              and t.del_flag=0
-              and t.status is not null
-              and trim(t.status) <> ''
-            order by t.status
-            """)
-    List<String> taskStatuses(@Param("customerId") String customerId);
-
-    @Select("""
             <script>
             with completed_statuses as (
               select value
@@ -296,7 +306,7 @@ public interface CustomerPortalMapper {
               where enum_type='task_status'
                 and active=true
                 and del_flag=0
-                and value='已完成'
+                and value='COMPLETED'
             ),
             scoped_tasks as (
               select t.*,
@@ -332,7 +342,7 @@ public interface CustomerPortalMapper {
               where enum_type='task_status'
                 and active=true
                 and del_flag=0
-                and value='已完成'
+                and value='COMPLETED'
             ),
             scoped_tasks as (
               select t.*,
@@ -467,7 +477,7 @@ public interface CustomerPortalMapper {
             insert into kpm_tasks
             (id, task_no, title, description, project_id, category, status, priority, creator, source, customer_id, blocked)
             values
-            (#{id}, #{taskNo}, #{title}, #{description}, #{projectId}, #{category}, #{status}, #{priority}, #{creator}, '客户门户', #{customerId}, false)
+            (#{id}, #{taskNo}, #{title}, #{description}, #{projectId}, #{category}, #{status}, #{priority}, #{creator}, 'CUSTOMER_PORTAL', #{customerId}, false)
             """)
     void insertTask(
             @Param("id") String id,

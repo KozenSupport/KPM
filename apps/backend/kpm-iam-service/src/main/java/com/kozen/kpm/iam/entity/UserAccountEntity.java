@@ -1,5 +1,7 @@
 package com.kozen.kpm.iam.entity;
 
+import com.kozen.kpm.common.util.BusinessEnumCodes;
+
 /**
  * Database entity for one KPM login account.
  *
@@ -63,6 +65,6 @@ public class UserAccountEntity {
     }
 
     public boolean enabled() {
-        return "启用".equals(status);
+        return BusinessEnumCodes.ACTIVE.equals(status);
     }
 }

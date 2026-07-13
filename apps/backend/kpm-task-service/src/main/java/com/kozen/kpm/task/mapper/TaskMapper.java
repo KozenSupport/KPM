@@ -20,6 +20,9 @@ import java.util.List;
 /** Task data access mapper backed by MyBatis. */
 @Mapper
 public interface TaskMapper {
+    @Select("select value from kpm_enum_items where enum_type=#{enumType} and value=#{value} and active=true and del_flag=0 limit 1")
+    String enumExactValue(@Param("enumType") String enumType, @Param("value") String value);
+
     @Select("""
             select id, account, email, name
             from kpm_users
@@ -102,11 +105,11 @@ public interface TaskMapper {
                     select 1 from kpm_task_participants tp where tp.task_id=t.id and tp.del_flag=0 and tp.user_id = nullif(#{userId}, '')::bigint
                   ))
               and (#{assigneeScope} != 'me' or (
-                    coalesce(t.status, '') not in ('已完成', '已拒绝')
+                    coalesce(t.status, '') not in ('COMPLETED', 'REJECTED')
                     and exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint)
                   ))
               and (#{assigneeScope} != 'others' or (
-                    coalesce(t.status, '') not in ('已完成', '已拒绝')
+                    coalesce(t.status, '') not in ('COMPLETED', 'REJECTED')
                     and not exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint)
                     and (t.creator_user_id = nullif(#{userId}, '')::bigint
                          or exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint)
@@ -120,7 +123,7 @@ public interface TaskMapper {
               )
               </if>
               <if test="completedStatuses == null or completedStatuses.size() == 0">
-              and (#{statusScope} != 'completed' or t.status = '已完成')
+              and (#{statusScope} != 'completed' or t.status = 'COMPLETED')
               </if>
             order by t.created_at desc, t.id desc
             limit #{limit} offset #{offset}
@@ -161,11 +164,11 @@ public interface TaskMapper {
                     select 1 from kpm_task_participants tp where tp.task_id=t.id and tp.del_flag=0 and tp.user_id = nullif(#{userId}, '')::bigint
                   ))
               and (#{assigneeScope} != 'me' or (
-                    coalesce(t.status, '') not in ('已完成', '已拒绝')
+                    coalesce(t.status, '') not in ('COMPLETED', 'REJECTED')
                     and exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint)
                   ))
               and (#{assigneeScope} != 'others' or (
-                    coalesce(t.status, '') not in ('已完成', '已拒绝')
+                    coalesce(t.status, '') not in ('COMPLETED', 'REJECTED')
                     and not exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint)
                     and (t.creator_user_id = nullif(#{userId}, '')::bigint
                          or exists (select 1 from kpm_task_assignees ta where ta.task_id=t.id and ta.del_flag=0 and ta.user_id = nullif(#{userId}, '')::bigint)
@@ -179,7 +182,7 @@ public interface TaskMapper {
               )
               </if>
               <if test="completedStatuses == null or completedStatuses.size() == 0">
-              and (#{statusScope} != 'completed' or t.status = '已完成')
+              and (#{statusScope} != 'completed' or t.status = 'COMPLETED')
               </if>
             </script>
             """)
@@ -222,8 +225,8 @@ public interface TaskMapper {
                   and nullif(#{userId}, '') is not null
             )
             select count(*) filter (where related) as total,
-                   count(*) filter (where related and assigned_to_me and coalesce(status, '') not in ('已完成','已拒绝')) as mine,
-                   count(*) filter (where related and not assigned_to_me and coalesce(status, '') not in ('已完成','已拒绝')) as waiting,
+                   count(*) filter (where related and assigned_to_me and coalesce(status, '') not in ('COMPLETED','REJECTED')) as mine,
+                   count(*) filter (where related and not assigned_to_me and coalesce(status, '') not in ('COMPLETED','REJECTED')) as waiting,
                    <if test="completedStatuses != null and completedStatuses.size() > 0">
                    count(*) filter (where related and status in
                      <foreach collection="completedStatuses" item="completedStatus" open="(" separator="," close=")">
@@ -232,7 +235,7 @@ public interface TaskMapper {
                    ) as completed
                    </if>
                    <if test="completedStatuses == null or completedStatuses.size() == 0">
-                   count(*) filter (where related and status = '已完成') as completed
+                   count(*) filter (where related and status = 'COMPLETED') as completed
                    </if>
             from scoped
             </script>

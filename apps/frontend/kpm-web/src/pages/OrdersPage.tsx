@@ -1,7 +1,8 @@
 import { PlusOutlined } from '@ant-design/icons';
 import { Button, Card, Descriptions, Drawer, Form, Input, InputNumber, Modal, Select, Space, Table, Tag, Typography, message } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { ActionButtons } from '../components/common/ActionButtons';
 import { CustomerSelect } from '../components/common/CustomerSelect';
@@ -16,13 +17,14 @@ import { useActionLock } from '../hooks/useActionLock';
 import { confirmSubmit } from '../hooks/useConfirmingForm';
 import { kpmApi } from '../services/kpmApi';
 import type { AnyRecord, Order } from '../types';
+import { EnumCode, EnumType } from '../types/businessEnums';
+import { businessEnumLabel, firstEnumCode } from '../utils/businessEnums';
 import { dateText, dateValue, moneyText } from '../utils/format';
 import { validationRules } from '../validation';
 
-const currencyOptions = ['USD', 'CNY', 'EUR', 'GBP', 'JPY'].map((value) => ({ label: value, value }));
-
 export function OrdersPage() {
   const { data, isLoading, error } = useKpmData();
+  const { i18n } = useTranslation();
   const refresh = useRefreshKpmData();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -37,6 +39,11 @@ export function OrdersPage() {
   const projectId = Form.useWatch('projectId', form);
   const selectedProject = (data?.projects || []).find((project) => project.id === projectId);
   const skuOptions = (selectedProject?.skus || []).map((sku) => ({ label: `${sku.wholeMachinePartNumber} · ${sku.configurationName} · ${sku.memoryType}`, value: sku.id }));
+  const orderDefaults = useMemo(() => ({
+    orderType: firstEnumCode(data?.bootstrap?.enumItems, EnumType.orderType, EnumCode.formalOrder),
+    status: firstEnumCode(data?.bootstrap?.enumItems, EnumType.orderStatus, 'CREATED'),
+    currency: firstEnumCode(data?.bootstrap?.enumItems, EnumType.currency, 'USD'),
+  }), [data?.bootstrap?.enumItems]);
 
   useEffect(() => {
     setFilters((prev) => ({ ...prev, customerId: searchParams.get('customerId') || undefined, projectId: searchParams.get('projectId') || undefined }));
@@ -67,7 +74,7 @@ export function OrdersPage() {
   function openCreate() {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ orderDate: new Date().toISOString().slice(0, 10), customerId: filters.customerId, creator: user?.name || user?.account, currency: 'USD', quantity: 1 });
+    form.setFieldsValue({ orderDate: new Date().toISOString().slice(0, 10), customerId: filters.customerId, creator: user?.name || user?.account, quantity: 1, ...orderDefaults });
     setModalOpen(true);
   }
 
@@ -119,8 +126,8 @@ export function OrdersPage() {
               { title: '下单日期', dataIndex: 'orderDate', width: 118, defaultSortOrder: 'descend', sorter: (left, right) => dateValue(left.orderDate) - dateValue(right.orderDate), render: dateText },
               { title: '客户', dataIndex: 'customerName', width: 150, ellipsis: true },
               { title: '项目', dataIndex: 'projectName', width: 150, ellipsis: true },
-              { title: '类型', render: (_, row) => <Tag>{row.orderType || row.type || '-'}</Tag>, width: 110 },
-              { title: '状态', dataIndex: 'status', width: 110, render: (value) => <StatusTag value={value} /> },
+              { title: '类型', render: (_, row) => <Tag>{businessEnumLabel(data?.bootstrap?.enumItems, EnumType.orderType, row.orderType || row.type, i18n.language)}</Tag>, width: 110 },
+              { title: '状态', dataIndex: 'status', width: 110, render: (value) => <StatusTag value={value} enumItems={data?.bootstrap?.enumItems} enumType={EnumType.orderStatus} /> },
               { title: 'SKU', width: 180, ellipsis: true, render: (_, row) => row.configurationName || row.wholeMachinePartNumber || '-' },
               { title: '数量', dataIndex: 'quantity', width: 80 },
               { title: '金额', width: 130, render: (_, row) => moneyText(row.amount, row.currency) },
@@ -147,7 +154,7 @@ export function OrdersPage() {
             </Space.Compact>
             <Space.Compact block>
               <Form.Item name="quantity" label="数量" rules={[validationRules.required('请输入数量')]} style={{ width: '33%' }}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
-              <Form.Item name="currency" label="币种" rules={[validationRules.required('请选择币种')]} style={{ width: '33%' }}><Select options={currencyOptions} /></Form.Item>
+              <Form.Item name="currency" label="币种" rules={[validationRules.required('请选择币种')]} style={{ width: '33%' }}><EnumSelect bootstrap={data?.bootstrap} enumType={EnumType.currency} /></Form.Item>
               <Form.Item name="unitPrice" label="单价" rules={[validationRules.required('请输入单价')]} style={{ width: '34%' }}><InputNumber min={0} precision={2} style={{ width: '100%' }} /></Form.Item>
             </Space.Compact>
             <Form.Item name="specification" label="具体规格" rules={[validationRules.required('请输入具体规格'), validationRules.max(1000)]}><Input.TextArea rows={3} /></Form.Item>
@@ -160,8 +167,8 @@ export function OrdersPage() {
             <Descriptions bordered size="small" column={2}>
               <Descriptions.Item label="客户">{detail.customerName}</Descriptions.Item>
               <Descriptions.Item label="项目">{detail.projectName}</Descriptions.Item>
-              <Descriptions.Item label="类型">{detail.orderType || detail.type}</Descriptions.Item>
-              <Descriptions.Item label="状态"><StatusTag value={detail.status} /></Descriptions.Item>
+              <Descriptions.Item label="类型">{businessEnumLabel(data?.bootstrap?.enumItems, EnumType.orderType, detail.orderType || detail.type, i18n.language)}</Descriptions.Item>
+              <Descriptions.Item label="状态"><StatusTag value={detail.status} enumItems={data?.bootstrap?.enumItems} enumType={EnumType.orderStatus} /></Descriptions.Item>
               <Descriptions.Item label="整机料号">{detail.wholeMachinePartNumber || '-'}</Descriptions.Item>
               <Descriptions.Item label="配置名称">{detail.configurationName || '-'}</Descriptions.Item>
               <Descriptions.Item label="内存类型">{detail.memoryType || '-'}</Descriptions.Item>

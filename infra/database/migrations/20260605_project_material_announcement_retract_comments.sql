@@ -1,7 +1,7 @@
 -- Project material retract/delete, announcement status/history, and comment pagination indexes.
 
 ALTER TABLE kpm_project_announcements
-  ADD COLUMN IF NOT EXISTS announcement_status TEXT NOT NULL DEFAULT '已发布',
+  ADD COLUMN IF NOT EXISTS announcement_status TEXT NOT NULL DEFAULT 'PUBLISHED',
   ADD COLUMN IF NOT EXISTS retracted_at TIMESTAMP,
   ADD COLUMN IF NOT EXISTS retracted_by TEXT;
 
@@ -20,7 +20,7 @@ EXCEPTION WHEN insufficient_privilege THEN
 END $$;
 
 UPDATE kpm_project_announcements
-SET announcement_status='已发布'
+SET announcement_status='PUBLISHED'
 WHERE announcement_status IS NULL OR announcement_status='';
 
 CREATE INDEX IF NOT EXISTS idx_kpm_project_announcements_active_portal

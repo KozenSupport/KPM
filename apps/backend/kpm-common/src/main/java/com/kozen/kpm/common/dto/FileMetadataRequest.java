@@ -2,7 +2,9 @@ package com.kozen.kpm.common.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import com.kozen.kpm.common.util.BusinessEnumCodes;
 
 @Schema(description = "文件元数据保存请求。文件实际内容由文件服务上传到 OSS。")
 public record FileMetadataRequest(
@@ -10,6 +12,7 @@ public record FileMetadataRequest(
         @Size(max = 255, message = "文件名不能超过255个字符")
         String fileName,
         @Size(max = 64, message = "文件类型不能超过64个字符")
+        @Pattern(regexp = "^$|" + BusinessEnumCodes.CODE_PATTERN, message = "文件类型必须使用枚举Code")
         String fileType,
         @Size(max = 64, message = "文件大小不能超过64个字符")
         String fileSize,

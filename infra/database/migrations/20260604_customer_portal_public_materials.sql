@@ -9,8 +9,8 @@ DROP TABLE IF EXISTS kpm_customer_portal_otps;
 
 INSERT INTO kpm_permissions (id, code, name, permission_type, target, location)
 VALUES
-  (3095,'button:project-materials:upload','项目详情 / 上传项目资料','按钮权限','上传项目资料','项目详情'),
-  (3096,'button:project-materials:publish-customer','项目详情 / 公开项目资料','按钮权限','公开项目资料','项目详情')
+  (3095,'button:project-materials:upload','项目详情 / 上传项目资料','BUTTON','上传项目资料','项目详情'),
+  (3096,'button:project-materials:publish-customer','项目详情 / 公开项目资料','BUTTON','公开项目资料','项目详情')
 ON CONFLICT (code) DO UPDATE SET
   name=excluded.name,
   permission_type=excluded.permission_type,

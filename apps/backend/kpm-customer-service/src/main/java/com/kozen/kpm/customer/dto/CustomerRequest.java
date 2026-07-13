@@ -1,5 +1,6 @@
 package com.kozen.kpm.customer.dto;
 
+import com.kozen.kpm.common.util.BusinessEnumCodes;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -22,8 +23,10 @@ public record CustomerRequest(
         @Size(max = 255, message = "详细地址不能超过255个字符")
         String address,
         @Size(max = 60, message = "客户等级不能超过60个字符")
+        @Pattern(regexp = "^$|" + BusinessEnumCodes.CODE_PATTERN, message = "客户等级必须使用枚举Code")
         String level,
         @Size(max = 60, message = "客户状态不能超过60个字符")
+        @Pattern(regexp = "^$|" + BusinessEnumCodes.CODE_PATTERN, message = "客户状态必须使用枚举Code")
         String status,
         @Size(max = 30, message = "负责销售不能超过30人")
         List<String> salesOwners,

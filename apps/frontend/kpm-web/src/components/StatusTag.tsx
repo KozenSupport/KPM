@@ -1,10 +1,17 @@
 import { Tag } from 'antd';
+import { useTranslation } from 'react-i18next';
+import type { BusinessEnumItem } from '../types';
+import { businessEnumLabel, businessStatusColor } from '../utils/businessEnums';
 
-export function StatusTag({ value }: { value?: string | boolean | null }) {
-  const text = typeof value === 'boolean' ? (value ? '启用' : '停用') : (value || '-');
-  const color = ['已完成', '启用', '已发货', '已收货'].includes(text) ? 'green'
-    : ['进行中', '生产中', '订单冲刺'].includes(text) ? 'blue'
-      : ['已归档', '已作废', '停用'].includes(text) ? 'red'
-        : 'gold';
-  return <Tag color={color}>{text}</Tag>;
+type StatusTagProps = {
+  value?: string | boolean | null;
+  enumItems?: BusinessEnumItem[];
+  enumType?: string;
+  label?: string;
+};
+
+export function StatusTag({ value, enumItems, enumType, label }: StatusTagProps) {
+  const { i18n } = useTranslation();
+  const text = label || businessEnumLabel(enumItems, enumType, value, i18n.language);
+  return <Tag color={businessStatusColor(value)}>{text}</Tag>;
 }

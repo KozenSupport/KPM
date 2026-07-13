@@ -34,6 +34,8 @@ import { useActionLock } from "../hooks/useActionLock";
 import { confirmSubmit } from "../hooks/useConfirmingForm";
 import { kpmApi } from "../services/kpmApi";
 import type { AnyRecord, Customer, CustomerFollowup } from "../types";
+import { EnumType } from "../types/businessEnums";
+import { firstEnumCode } from "../utils/businessEnums";
 import {
   attachmentLimitMessage,
   downloadBusinessFile,
@@ -103,6 +105,10 @@ export function CustomersPage() {
   function openCreate() {
     setEditing(null);
     form.resetFields();
+    form.setFieldsValue({
+      level: firstEnumCode(data?.bootstrap?.enumItems, EnumType.customerLevel, "STANDARD"),
+      status: firstEnumCode(data?.bootstrap?.enumItems, EnumType.customerStatus, "PROSPECT"),
+    });
     setModalOpen(true);
   }
 
@@ -326,13 +332,13 @@ export function CustomersPage() {
                 title: "等级",
                 dataIndex: "level",
                 width: 110,
-                render: (value) => <StatusTag value={value} />,
+                render: (value) => <StatusTag value={value} enumItems={data?.bootstrap?.enumItems} enumType={EnumType.customerLevel} />,
               },
               {
                 title: "状态",
                 dataIndex: "status",
                 width: 110,
-                render: (value) => <StatusTag value={value} />,
+                render: (value) => <StatusTag value={value} enumItems={data?.bootstrap?.enumItems} enumType={EnumType.customerStatus} />,
               },
               {
                 title: "销售",
@@ -479,10 +485,10 @@ export function CustomersPage() {
                   {activeCustomer.region || "-"}
                 </Descriptions.Item>
                 <Descriptions.Item label="等级">
-                  <StatusTag value={activeCustomer.level} />
+                  <StatusTag value={activeCustomer.level} enumItems={data?.bootstrap?.enumItems} enumType={EnumType.customerLevel} />
                 </Descriptions.Item>
                 <Descriptions.Item label="状态">
-                  <StatusTag value={activeCustomer.status} />
+                  <StatusTag value={activeCustomer.status} enumItems={data?.bootstrap?.enumItems} enumType={EnumType.customerStatus} />
                 </Descriptions.Item>
                 <Descriptions.Item label="地址">
                   {activeCustomer.address || "-"}
@@ -544,7 +550,7 @@ export function CustomersPage() {
                     {
                       title: "状态",
                       dataIndex: "projectStatus",
-                      render: (value) => <StatusTag value={value} />,
+                      render: (value) => <StatusTag value={value} enumItems={data?.bootstrap?.enumItems} enumType={EnumType.customerProjectStatus} />,
                     },
                   ]}
                 />

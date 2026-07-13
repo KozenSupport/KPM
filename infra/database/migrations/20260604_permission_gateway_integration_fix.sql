@@ -1,7 +1,7 @@
 -- Keep gateway RBAC permission catalog aligned with backend routes.
 
 INSERT INTO kpm_permissions (id, code, name, permission_type, target, location)
-VALUES (3094, 'button:project-detail:edit-members', '项目详情 / 维护成员', '按钮权限', '维护成员', '项目详情')
+VALUES (3094, 'button:project-detail:edit-members', '项目详情 / 维护成员', 'BUTTON', '维护成员', '项目详情')
 ON CONFLICT (code) DO UPDATE SET
     name=excluded.name,
     permission_type=excluded.permission_type,

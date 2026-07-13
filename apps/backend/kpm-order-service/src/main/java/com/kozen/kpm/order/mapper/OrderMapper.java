@@ -47,12 +47,12 @@ public interface OrderMapper {
             o.updated_at as updatedAt
             """;
 
-    @Select("select id, account, email, name from kpm_users where account=#{value} or email=#{value} or name=#{value}")
+    @Select("select id, account, email, name from kpm_users where (account=#{value} or email=#{value} or name=#{value}) and del_flag=0")
     List<UserLookupEntity> usersByAccountOrName(@Param("value") Object value);
 
     @Select("""
             select value from kpm_enum_items
-            where enum_type=#{enumType} and value=#{value} and active=true
+            where enum_type=#{enumType} and value=#{value} and active=true and del_flag=0
             limit 1
             """)
     String enumExactValue(@Param("enumType") String enumType, @Param("value") String value);

@@ -2,7 +2,7 @@ package com.kozen.kpm.task.service.impl;
 
 import com.kozen.kpm.common.api.PageResult;
 import com.kozen.kpm.common.dto.FileMetadataRequest;
-import com.kozen.kpm.common.util.BusinessEnumValues;
+import com.kozen.kpm.common.util.BusinessEnumCodes;
 import com.kozen.kpm.common.util.IdUtil;
 import com.kozen.kpm.common.util.JsonUtil;
 import com.kozen.kpm.common.util.PageParamUtil;
@@ -152,6 +152,7 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Transactional
     public TaskDto create(TaskRequest request) {
+        validateTaskEnums(request);
         String id = request.id() == null || request.id().isBlank() ? IdUtil.nanoId("task") : request.id();
         String customerId = SqlParamUtil.stringOrNull(request.customerId());
         String taskNo = nextTaskNo(customerId);
@@ -175,6 +176,7 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Transactional
     public TaskDto update(String id, TaskRequest request) {
+        validateTaskEnums(request);
         TaskEntity before = taskMapper.load(id);
         if (before == null) {
             throw new IllegalArgumentException("任务不存在");
@@ -345,13 +347,31 @@ public class TaskServiceImpl implements TaskService {
     }
 
     private void syncRequirementByTaskStatus(String taskId, String status) {
-        if (BusinessEnumValues.TASK_STATUS_COMPLETED.equals(status)) {
-            taskMapper.syncRequirement(taskId, BusinessEnumValues.REQUIREMENT_STATUS_COMPLETED);
+        if (BusinessEnumCodes.TASK_STATUS_COMPLETED.equals(status)) {
+            taskMapper.syncRequirement(taskId, BusinessEnumCodes.REQUIREMENT_STATUS_IMPLEMENTED);
             return;
         }
-        if (BusinessEnumValues.TASK_STATUS_REJECTED.equals(status)) {
-            taskMapper.syncRequirement(taskId, BusinessEnumValues.REQUIREMENT_STATUS_REJECTED);
+        if (BusinessEnumCodes.TASK_STATUS_REJECTED.equals(status)) {
+            taskMapper.syncRequirement(taskId, BusinessEnumCodes.REQUIREMENT_STATUS_REJECTED);
         }
+    }
+
+    private void validateTaskEnums(TaskRequest request) {
+        requireConfiguredValue("task_category", request.category(), "任务分类");
+        requireConfiguredValue("task_status", request.status(), "任务状态");
+        requireConfiguredValue("task_priority", request.priority(), "任务优先级");
+        String source = request.normalizedSource();
+        if (!BusinessEnumCodes.isTaskSource(source)) {
+            throw new IllegalArgumentException("任务来源不是有效的系统枚举Code：" + source);
+        }
+    }
+
+    private String requireConfiguredValue(String enumType, String code, String label) {
+        String configured = taskMapper.enumExactValue(enumType, code);
+        if (configured == null || configured.isBlank()) {
+            throw new IllegalArgumentException(label + "不是已启用的枚举Code：" + code);
+        }
+        return configured;
     }
 
     private String nextTaskNo(String customerId) {

@@ -16,6 +16,6 @@ public record CustomerActivityDto(
         @Schema(description = "最近下单日期") LocalDate lastOrderDate,
         @Schema(description = "未关闭任务数") Long openTaskCount,
         @Schema(description = "关联项目数") Long projectCount,
-        @Schema(description = "活跃状态：活跃/观察/停滞/遗弃") String activityStatus
+        @Schema(description = "活跃状态Code", allowableValues = {"ACTIVE", "OBSERVING", "STALLED", "ABANDONED"}) String activityStatus
 ) {
 }
