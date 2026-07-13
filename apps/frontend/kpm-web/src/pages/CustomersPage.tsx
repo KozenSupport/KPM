@@ -25,6 +25,7 @@ import { ActionButtons } from "../components/common/ActionButtons";
 import { DataState } from "../components/common/DataState";
 import { EnumSelect } from "../components/common/EnumSelect";
 import { UserSelect } from "../components/common/UserSelect";
+import { CustomerFollowupDetailModal } from "../components/customer/CustomerFollowupDetailModal";
 import { PageScaffold } from "../components/PageScaffold";
 import { StatusTag } from "../components/StatusTag";
 import { useAuth } from "../context/AuthContext";
@@ -32,7 +33,7 @@ import { useKpmData, useRefreshKpmData } from "../hooks/useKpmData";
 import { useActionLock } from "../hooks/useActionLock";
 import { confirmSubmit } from "../hooks/useConfirmingForm";
 import { kpmApi } from "../services/kpmApi";
-import type { AnyRecord, Customer } from "../types";
+import type { AnyRecord, Customer, CustomerFollowup } from "../types";
 import {
   attachmentLimitMessage,
   downloadBusinessFile,
@@ -74,6 +75,7 @@ export function CustomersPage() {
   const [editingContact, setEditingContact] = useState<AnyRecord | null>(null);
   const [contactModal, setContactModal] = useState(false);
   const [followupModal, setFollowupModal] = useState(false);
+  const [followupDetail, setFollowupDetail] = useState<CustomerFollowup | null>(null);
   const [materialModal, setMaterialModal] = useState(false);
   const [notificationModal, setNotificationModal] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 12 });
@@ -362,7 +364,7 @@ export function CustomersPage() {
                 fixed: "right",
                 render: (_, row) => (
                   <ActionButtons
-                    onView={() => setDetail(row)}
+                    onView={() => void openDetail(row)}
                     onEdit={() => openEdit(row)}
                     onDelete={() =>
                       kpmApi.deleteCustomer(row.id).then(() => {
@@ -453,7 +455,10 @@ export function CustomersPage() {
         <Drawer
           title={activeCustomer?.name || "客户详情"}
           open={Boolean(detail)}
-          onClose={() => setDetail(null)}
+          onClose={() => {
+            setDetail(null);
+            setFollowupDetail(null);
+          }}
           width={760}
           extra={
             activeCustomer ? (
@@ -557,9 +562,9 @@ export function CustomersPage() {
                   </Button>
                 }
               >
-                <Table
+                <Table<AnyRecord>
                   size="small"
-                  rowKey={(row: AnyRecord) => row.id}
+                  rowKey={(row) => String(row.id)}
                   pagination={{ pageSize: 5 }}
                   dataSource={activeCustomer.materials || []}
                   columns={[
@@ -609,13 +614,31 @@ export function CustomersPage() {
                   </Button>
                 }
               >
-                <Table
+                <Table<CustomerFollowup>
                   size="small"
-                  rowKey={(row: AnyRecord) => row.id}
+                  rowKey={(row) => String(row.id)}
                   pagination={{ pageSize: 5 }}
                   dataSource={activeCustomer.followups || []}
+                  rowClassName="kpm-clickable-table-row"
+                  onRow={(row) => ({ onClick: () => setFollowupDetail(row) })}
                   columns={[
-                    { title: "内容", dataIndex: "content", ellipsis: true },
+                    {
+                      title: "内容",
+                      dataIndex: "content",
+                      ellipsis: true,
+                      render: (value: string, row: CustomerFollowup) => (
+                        <Typography.Link
+                          ellipsis
+                          title={value || "-"}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setFollowupDetail(row);
+                          }}
+                        >
+                          {value || "-"}
+                        </Typography.Link>
+                      ),
+                    },
                     { title: "记录人", dataIndex: "author", width: 120 },
                     {
                       title: "附件",
@@ -648,6 +671,11 @@ export function CustomersPage() {
             </Space>
           ) : null}
         </Drawer>
+
+        <CustomerFollowupDetailModal
+          followup={followupDetail}
+          onClose={() => setFollowupDetail(null)}
+        />
 
         <Modal
           title="发送客户通知"
@@ -791,7 +819,7 @@ export function CustomersPage() {
               label="跟进内容"
               rules={[
                 validationRules.required("请输入跟进内容"),
-                validationRules.max(1000),
+                validationRules.max(2000),
               ]}
             >
               <Input.TextArea rows={5} />

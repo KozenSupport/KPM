@@ -104,9 +104,18 @@ export type Customer = {
   salesOwners?: string[];
   supportOwners?: string[];
   contacts?: AnyRecord[];
-  followups?: AnyRecord[];
+  followups?: CustomerFollowup[];
   materials?: AnyRecord[];
   projects?: AnyRecord[];
+};
+
+export type CustomerFollowup = {
+  id: Id;
+  customerId?: Id;
+  author?: string;
+  content?: string;
+  attachments?: AnyRecord[];
+  createdAt?: string;
 };
 
 export type Task = {
