@@ -372,7 +372,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Transactional
     public ProcessTemplateDto createTemplate(ProcessTemplateRequest request) {
         String id = uniqueTemplateId(request.name());
-        projectMapper.insertTemplate(new ProcessTemplateWriteCommand(id, request.name(), request.scope(), request.status()));
+        projectMapper.insertTemplate(new ProcessTemplateWriteCommand(id, request.name(), request.scope(), normalizeTemplateStatus(request.status())));
         replaceTemplateStages(id, request.safeStages());
         return enrichTemplate(projectMapper.template(id));
     }
@@ -380,7 +380,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     @Transactional
     public ProcessTemplateDto updateTemplate(String id, ProcessTemplateRequest request) {
-        projectMapper.updateTemplate(new ProcessTemplateWriteCommand(id, request.name(), request.scope(), request.status()));
+        projectMapper.updateTemplate(new ProcessTemplateWriteCommand(id, request.name(), request.scope(), normalizeTemplateStatus(request.status())));
         replaceTemplateStages(id, request.safeStages());
         return enrichTemplate(projectMapper.template(id));
     }
@@ -448,9 +448,6 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     private String resolveTemplateIdForProjectCreation(ProjectRequest request) {
-        if (!request.safeStages().isEmpty()) {
-            return stringValue(request.templateId());
-        }
         String requestedTemplateId = stringValue(request.templateId());
         if (requestedTemplateId != null) {
             ProcessTemplateEntity selected = projectMapper.template(requestedTemplateId);
@@ -459,11 +456,25 @@ public class ProjectServiceImpl implements ProjectService {
             }
             return selected.getId();
         }
+        if (!request.safeStages().isEmpty()) {
+            return null;
+        }
         List<ProcessTemplateEntity> activeTemplates = projectMapper.activeTemplates();
         if (activeTemplates.isEmpty()) {
             throw new IllegalArgumentException("暂无启用状态的流程模板，请先在流程模板中启用一个模板");
         }
         return activeTemplates.getFirst().getId();
+    }
+
+    private String normalizeTemplateStatus(String rawStatus) {
+        String status = ValidationUtil.requireText(rawStatus, "模板状态", 20);
+        if ("启用".equals(status)) {
+            return "启用";
+        }
+        if ("停用".equals(status) || "未启用".equals(status) || "草稿".equals(status)) {
+            return "停用";
+        }
+        throw new IllegalArgumentException("模板状态只能是启用或停用");
     }
 
     private void replaceProjectMembers(String projectId, List<ProjectMemberRequest> requestedMembers, String managerAccount) {

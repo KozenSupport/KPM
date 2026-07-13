@@ -11,7 +11,7 @@ import { useKpmData, useRefreshKpmData } from '../hooks/useKpmData';
 import { useActionLock } from '../hooks/useActionLock';
 import { confirmSubmit } from '../hooks/useConfirmingForm';
 import { kpmApi } from '../services/kpmApi';
-import type { Project } from '../types';
+import type { AnyRecord, Project } from '../types';
 import { validationRules } from '../validation';
 
 export function ProjectsPage() {
@@ -24,8 +24,9 @@ export function ProjectsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [filters, setFilters] = useState({ keyword: '', archived: 'false' });
   const [pagination, setPagination] = useState({ current: 1, pageSize: 12 });
+  const [templateRows, setTemplateRows] = useState<AnyRecord[] | null>(null);
   const { isLocked, runLocked } = useActionLock();
-  const templates = data?.templates || [];
+  const templates = templateRows ?? data?.templates ?? [];
   const activeTemplates = useMemo(
     () => templates.filter((item) => item.status === '启用'),
     [templates],
@@ -62,11 +63,16 @@ export function ProjectsPage() {
     queryClient.invalidateQueries({ queryKey: ['kpm', 'projects-page'] });
   }
 
-  function openCreate() {
-    setEditing(null);
-    form.resetFields();
-    form.setFieldsValue({ templateId: activeTemplates[0]?.id ? String(activeTemplates[0].id) : undefined });
-    setModalOpen(true);
+  async function openCreate() {
+    await runLocked('project-template-refresh', async () => {
+      const latestTemplates = await kpmApi.templates();
+      const latestActiveTemplates = latestTemplates.filter((item) => item.status === '启用');
+      setTemplateRows(latestTemplates);
+      setEditing(null);
+      form.resetFields();
+      form.setFieldsValue({ templateId: latestActiveTemplates[0]?.id ? String(latestActiveTemplates[0].id) : undefined });
+      setModalOpen(true);
+    });
   }
 
   function openEdit(project: Project) {
@@ -85,6 +91,17 @@ export function ProjectsPage() {
 
   async function submitProject() {
     const values = await form.validateFields();
+    if (!editing) {
+      const latestTemplates = await kpmApi.templates();
+      setTemplateRows(latestTemplates);
+      const selectedTemplate = latestTemplates.find((item) => String(item.id) === String(values.templateId));
+      if (!selectedTemplate || selectedTemplate.status !== '启用') {
+        const firstActive = latestTemplates.find((item) => item.status === '启用');
+        form.setFieldsValue({ templateId: firstActive?.id ? String(firstActive.id) : undefined });
+        message.warning('所选流程模板已不是启用状态，请重新选择流程模板');
+        return;
+      }
+    }
     const members = (values.members || []).map((account: string) => ({ userAccount: account, role: '项目成员' }));
     const payload = { ...values, members };
     confirmSubmit(editing ? '确认修改项目？' : '确认新增项目？', async () => {
@@ -100,7 +117,7 @@ export function ProjectsPage() {
   }
 
   return (
-    <PageScaffold title="项目管理" subtitle="管理 POS 产品项目、阶段、成员、SKU 与客户关联。" extra={<Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增项目</Button>}>
+    <PageScaffold title="项目管理" subtitle="管理 POS 产品项目、阶段、成员、SKU 与客户关联。" extra={<Button type="primary" icon={<PlusOutlined />} loading={isLocked('project-template-refresh')} onClick={() => void openCreate()}>新增项目</Button>}>
       <DataState loading={isLoading || projectPageQuery.isLoading} error={error || projectPageQuery.error}>
         <Card className="kpm-card kpm-filter-card">
           <Space wrap>
